@@ -13,6 +13,17 @@ Este documento se actualiza al finalizar cada sesión de trabajo para consolidar
 
 ## 0. Hito más reciente
 
+- **306. Corrección de Compilación CI/Release por Conflicto de DevServer en Uno.Sdk (2026-10-01)**:
+  - **El encargo**: Resolver el error `error UNOB0019: The DevServer package is intended for development builds only and should not be used with optimized/release builds` reportado durante la ejecución del workflow de CI de GitHub Actions.
+  - **🔬 Diagnóstico**: En CI, el comando `dotnet restore FileFlow.slnx` restauraba por defecto bajo la configuración `Debug`, provocando que `Uno.Sdk` inyectase el paquete de desarrollo `Uno.WinUI.DevServer` en `project.assets.json`. Al ejecutar después `dotnet build -c Release --no-restore`, las metas de MSBuild de Uno (`Uno.WinUI.DevServer.targets`) abortaban la compilación al detectar dicho paquete en una compilación optimizada.
+  - **🧱 Acciones**:
+    - Añadido `<PackageReference Remove="Uno.WinUI.DevServer" />` y `<PackageReference Remove="Uno.UI.DevServer" />` condicionado a `Release` u `Optimize=true` en [FileFlow.App.Uno.csproj](file:///FileFlow.App.Uno/FileFlow.App.Uno.csproj).
+    - Actualizados los workflows de GitHub Actions [.github/workflows/ci.yml](file:///.github/workflows/ci.yml) y [.github/workflows/release.yml](file:///.github/workflows/release.yml) para restaurar explícitamente con `-p:Configuration=Release`.
+  - **📊 Validación**:
+    - `dotnet restore FileFlow.slnx -p:Configuration=Release && dotnet build FileFlow.slnx -c Release --no-restore`: **0 errores**.
+    - Suite completa (`dotnet test -c Release --no-build`): **1.755 superadas, 1 omitida, 0 errores (100% éxito)**.
+
+
 - **305. Modularización del Viewport, Navegación y Diagnósticos del Lienzo Uno (2026-10-01)**:
   - **El encargo**: «continua con la opcion A». Desacoplar las rutinas de bajo nivel del lienzo visual (`EditorCanvasControl.xaml.cs`) relativas al zoom, encuadre de viewport, dibujo de la rejilla de fondo y diagnósticos de rastreo de foco a su propia clase parcial especializada (`EditorCanvasControl.Navigation.cs`).
   - **🔬 Diagnóstico**: `EditorCanvasControl.xaml.cs` (2.910 líneas) albergaba código utilitario de navegación (`OnWheelChanged`, `OnZoomIn`, `OnZoomOut`, `ZoomBy`, `OnFitToScreen`), generación de la rejilla (`DrawBackgroundGrid`) y trazadores de foco de elementos visuales (`DescribeChain`, `DescribeFocused`, `DescribeThief`, `DescribeDataContext`, `DescribeOpenPopups`), mientras que `ProbeUiAccessibility()` y el peer `CanvasAutomationPeer` debían permanecer anclados en el archivo raíz por requisitos de guardias de AST.

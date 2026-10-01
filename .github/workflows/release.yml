@@ -114,7 +114,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: 📦 Restaurar dependencias
-        run: dotnet restore FileFlow.slnx
+        run: dotnet restore FileFlow.slnx -p:Configuration=Release
 
       - name: 🧪 Ejecutar suite de pruebas
         if: ${{ github.event.inputs.run_tests != 'false' }}

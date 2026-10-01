@@ -56,6 +56,12 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
   </ItemGroup>
 
+  <!-- Asegurar que los paquetes de desarrollo / hot-reload de Uno nunca se incluyan en compilaciones Release u optimizadas -->
+  <ItemGroup Condition="'$(Configuration)' == 'Release' or '$(Optimize)' == 'true'">
+    <PackageReference Remove="Uno.WinUI.DevServer" />
+    <PackageReference Remove="Uno.UI.DevServer" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\FileFlow.App.Core\FileFlow.App.Core.csproj" />
     <ProjectReference Include="..\FileFlow.Sdk\FileFlow.Sdk.csproj" />

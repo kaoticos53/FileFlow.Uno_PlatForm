@@ -22,6 +22,26 @@
 
 ## Ventana viva
 
+## [2026-10-01] - Hito 306: Corrección de Compilación CI/Release por Conflicto de DevServer en Uno.Sdk
+
+### 🎯 El encargo
+Corregir el fallo en el workflow de GitHub Actions (`ci.yml` y `release.yml`) donde la compilación Release fallaba con el error `error UNOB0019: The DevServer package is intended for development builds only and should not be used with optimized/release builds.` en `FileFlow.App.Uno.csproj`.
+
+### 🔬 El diagnóstico
+- En GitHub Actions, el paso `dotnet restore FileFlow.slnx` se ejecutaba sin especificar configuración, lo que por defecto evaluaba la configuración `Debug`.
+- Al restaurar bajo `Debug`, `Uno.Sdk` inyectaba automáticamente el paquete de Hot Reload / servidor de desarrollo `Uno.WinUI.DevServer` en el archivo de activos `project.assets.json`.
+- En el siguiente paso (`dotnet build FileFlow.slnx -c Release --no-restore`), al compilar en modo `Release` (`Optimize=true`) reutilizando los activos de `Debug`, el target `Uno.WinUI.DevServer.targets` del paquete NuGet bloqueaba la compilación con la regla de seguridad `UNOB0019`.
+
+### 🧱 Las piezas
+- **`FileFlow.App.Uno/FileFlow.App.Uno.csproj`**: Se añadió una directiva explícita `<PackageReference Remove="Uno.WinUI.DevServer" />` y `<PackageReference Remove="Uno.UI.DevServer" />` condicionada a `$(Configuration) == 'Release' or $(Optimize) == 'true'` para garantizar que nunca se incluyan paquetes de desarrollo en artefactos de producción.
+- **`.github/workflows/ci.yml`**: Se actualizó el paso de restauración a `dotnet restore FileFlow.slnx -p:Configuration=Release`.
+- **`.github/workflows/release.yml`**: Se actualizó el paso de restauración a `dotnet restore FileFlow.slnx -p:Configuration=Release`.
+
+### 📊 La validación
+- **Restauración y compilación Release completa**: `dotnet restore FileFlow.slnx -p:Configuration=Release` + `dotnet build FileFlow.slnx -c Release --no-restore` completados con **0 errores**.
+- **Suite completa de pruebas (`dotnet test -c Release`)**: **1.755 superadas, 1 omitida (ONNX local), 0 errores (100% éxito)**.
+
+
 ## [2026-10-01] - Hito 305: Modularización del Viewport, Navegación y Diagnósticos del Lienzo Uno
 
 ### 🎯 El encargo
