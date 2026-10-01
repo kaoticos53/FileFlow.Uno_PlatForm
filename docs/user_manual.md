@@ -13,7 +13,7 @@
    - [File Item Pipeline Context (`FileItemContext`)](#file-item-pipeline-context-fileitemcontext)
    - [Nested Sub-workflows & Macros (Breadcrumbs)](#nested-sub-workflows--macros-breadcrumbs)
    - [Real-time Connection Telemetry Badges](#real-time-connection-telemetry-badges)
-   - [QuickLook Previewer & Node Inspector](#quicklook-previewer--node-inspector)
+   - [Node Inspector, Settings & Modal Dialogs](#node-inspector-settings--modal-dialogs)
 3. [Execution Modes & Data Safety](#3-execution-modes--data-safety)
    - [Standard Parallel Execution](#standard-parallel-execution)
    - [Virtual Simulation Mode ("Dry Run")](#virtual-simulation-mode-dry-run)
@@ -21,7 +21,7 @@
    - [Transactional LIFO Rollback System](#transactional-lifo-rollback-system)
    - [Interactive Debugging with Breakpoints](#interactive-debugging-with-breakpoints)
    - [Virtual File System (VFS) & Non-Destructive Test Bench](#virtual-file-system-vfs--non-destructive-test-bench)
-   - [Synthetic Data Set Designer](#synthetic-data-set-designer-syntheticdatasetdesignerwindow)
+   - [Synthetic Data Set Designer](#synthetic-data-set-designer)
    - [Hybrid Compressed Archive Simulation](#hybrid-compressed-archive-simulation-zip-rar-7z)
 4. [Token & Dynamic Template Engine](#4-token--dynamic-template-engine)
    - [Syntax & Token Domains](#syntax--token-domains)
@@ -62,8 +62,13 @@
 
 ### Interactive Node Canvas (DAG)
 Model pipelines by dragging and connecting nodes from the **Toolbox**:
+- **Toolbox with Category Dropdown Filter**: The left panel features a category dropdown filter (`ComboBox`) with dynamic pill badges showing node counts and instant text search. Categories are presented in high-contrast cards, and subordinate nodes with clean hierarchical indentation.
 - **Input Ports (Left Edge)**: Receive incoming items (`In`, `BranchA`, `Files`).
 - **Output Ports (Right Edge)**: Emit transformed files or conditional branch items (`Out`, `Done`, `Error`, `Matched`, `Unmatched`).
+- **Advanced Selection & Canvas Manipulation**:
+  - *Mixed Rubberband Selection*: Drag on the canvas to select both nodes and connecting wires simultaneously.
+  - *Additive Multi-Selection*: Hold `Ctrl` while clicking or dragging to add items to selection.
+  - *Atomic Delete*: Press `Delete` to remove selected nodes and wires in a single undoable (`Ctrl+Z`) and redoable (`Ctrl+Y`) transaction.
 - **Status LED**:
   - ⚪ *Idle*: Waiting for input items.
   - 🔵 *Pulsing Blue (Running)*: Processing files in real time.
@@ -94,11 +99,13 @@ Encapsulate complex pipelines into reusable composite nodes:
 3. Click any parent breadcrumb to commit changes and return to the main canvas.
 
 ### Real-time Connection Telemetry Badges
-Each wire dynamically renders a live counter badge (e.g., `⚡ 2,450 items`) showing item flow rates and eliminating bottlenecks instantly.
+Each wire dynamically renders a live counter badge (e.g., `⚡ 2,450 items`) with direct Bézier geometry rooted at port socket anchors.
 
-### QuickLook Previewer & Node Inspector
-- Press `Spacebar` or click `👁️ QuickLook` on any node or log entry to inspect images, documents, raw text, or metadata tables.
-- The **Node Inspector Panel** exposes parameters with rich controls (file pickers, sliders, checkboxes, and reactive protocol dropdowns).
+### Node Inspector, Settings & Modal Dialogs
+- **Node Inspector Panel**: Segmented tab bar navigation with grouped parameter cards and contextual action buttons (`{x}` for Variable Catalog, `🏷️` for Advanced Renamer pipeline, `🎬` for Media Presets, `🔑` for Password Manager). Closing the inspector immediately reclaims 100% canvas space.
+- **Settings Dialog**: Segmented tab bar switching smoothly between Storage, Appearance & Language, Performance, Tools, AI Models, and Updates.
+- **Rich Interactive Modal Dialogs**: Responsive WinUI 3 dialog surfaces supporting mouse wheel scrolling, live manual corner resizing, and maximize/restore toggles (`[+]` / `[-]`).
+- **QuickLook Previewer**: Press `Spacebar` or click `👁️ QuickLook` on any node or log entry to inspect images, documents, raw text, or metadata tables.
 
 ### Opening and Saving Flows: the File Format Version
 Every saved flow declares the format it was written in, and the application takes care of the rest:
@@ -136,7 +143,7 @@ To design, validate, and debug complex pipelines without manipulating real disks
 1. **Automated Zero-Config Activation**:
    - Adding a **`SyntheticDataSourceNode`** or tagging items as virtual (`IsVirtual = true`) causes the DAG engine (`WorkflowExecutor`) to transparently instantiate an in-memory Virtual File System store (`IVirtualFileSystemStore`).
    - File sink and relocation nodes (**`DestinationSinkNode`**, **`FileRelocatorNode`**, **`SafeRecycleDeleteNode`**, **`OriginalFileActionNode`**) automatically detect the virtual execution context and redirect their writes, copies, moves, and logical deletions to the VFS store without I/O errors or cluttering local storage.
-2. **Visual VFS Explorer (`VirtualFileSystemExplorerWindow`)**:
+2. **Visual VFS Explorer (`VirtualFileSystemExplorerBody`)**:
    - Once a run completes with virtual items, the control bar displays a reactive badge button **`🗂️ VFS (N)`** indicating total virtual files generated. It is also permanently accessible via the side navigation Drawer.
    - **3-Pane Split View**:
      - *Directory Tree*: Interactive recursive folder hierarchy created in memory.
@@ -144,13 +151,13 @@ To design, validate, and debug complex pipelines without manipulating real disks
      - *Metadata Inspector*: Right sidebar categorized by domain (Photo/EXIF, Music/Audio ID3, Video, Documents/Fiscal, and Cryptographic SHA/MD5 hashes).
    - **Export & Diagnostics Tools**:
      - `📋 Copy ASCII Tree`: Copies a formatted ASCII tree diagram to the clipboard.
-     - `📂 Open in Explorer`: Safely exports the in-memory VFS hierarchy into a temporary sandbox folder (`%TEMP%/FileFlow_VFS_Sandbox/...`) and opens it directly in Windows File Explorer.
+     - `📂 Open in Explorer`: Safely exports the in-memory VFS hierarchy into a temporary sandbox folder (`%TEMP%/FileFlow_VFS_Sandbox/...`) and opens it in the native operating system file manager.
 
-### Synthetic Data Set Designer (`SyntheticDataSetDesignerWindow`)
+### Synthetic Data Set Designer
 Allows users to create, modify, persist, and reuse custom test datasets with customized directory trees:
 - **Direct Entry Points**:
   1. `🎨 Diseñar Conjuntos de Datos...` custom action button in `SyntheticDataSourceNode` inspector.
-  2. `📊 Diseñador...` button on the sample toolbar in `AdvancedRenamerEditorWindow`.
+  2. `📊 Diseñador...` button on the sample toolbar in `AdvancedRenamerBody`.
   3. `📊 Diseñador de Datos Sintéticos` menu item in the main window Drawer.
 - **Dataset Catalog & Sidebar**:
   - Live search filter by name and category.

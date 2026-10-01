@@ -142,7 +142,7 @@ let currentUser = resolve("{UserName}");
 | `{SizeGB}` | Formatted size in Gigabytes. | `1.42` |
 | `{Year}`, `{Month}`, `{Day}` | Current year, month, and day. | `2026`, `09`, `02` |
 | `{Date:yyyy-MM-dd}` | Formatted date string. | `2026-09-02` |
-| `{UserName}` | Current Windows username. | `kaoticos53` |
+| `{UserName}` | Current OS username. | `kaoticos53` |
 | `{MachineName}` | Machine host name. | `DESKTOP-PRO` |
 | `{Hash:SHA256}` | SHA-256 hash (if calculated). | `e3b0c44298fc1c...` |
 | `{Exif:CameraModel}` | EXIF camera model (if image). | `Sony ILCE-7M4` |

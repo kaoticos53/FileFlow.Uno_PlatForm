@@ -27,7 +27,7 @@ Many people are afraid of using automation software in case it deletes or messes
 1. **Your original files are never altered by default:** All transformations create neat copies in new folders.
 2. **The Magic "Virtual Simulation" Button (Dry Run):** You can test any workflow without moving a single real file. The app shows you an exact simulation of what it would do before you press the real button.
 3. **The "Undo" Button (Ctrl+Z / Rollback):** If you run a flow and change your mind, click the **Undo** button and all files immediately return to their original names and locations.
-4. **Windows Recycle Bin:** If you ever decide to delete files on purpose, the program never permanently destroys them; it sends them to the Windows Recycle Bin so you can recover them at any time.
+4. **Operating System Trash / Recycle Bin:** If you ever decide to delete files on purpose, the program never permanently destroys them; it sends them to the OS Recycle Bin / Trash (Windows, Linux, macOS) so you can recover them at any time.
 
 ---
 
@@ -37,14 +37,14 @@ When you open FileFlow Studio, the screen is organized into 4 intuitive sections
 
 ```
 +-----------------------------------------------------------------------------------+
-|  Top Toolbar: [ ▶ Run Workflow ]  [ 🔍 Dry Run (Simulate) ]  [ ↩ Undo ]  [ 🎨 Theme ] |
+|  Top Toolbar: [ ▶ Run Workflow ]  [ 🔍 Dry Run (Simulate) ]  [ ↩ Undo ]  [ ⚙️ Settings ] |
 +-----------------------+-----------------------------------+-----------------------+
 |  LEFT                 |  CENTER (Workspace Canvas)        |  RIGHT                |
 |  Toolbox              |                                   |  Node Inspector       |
 |  (The Nodes)          |  [Folder Source] -> [Rename Node] |                       |
-|                       |                           \       |  Configure options    |
-|  • Read Folders       |                            v      |  for the selected     |
-|  • Rename Files       |                       [Move To...] |  box here.            |
+|  [Category Dropdown v]|                           \       |  Modern tab bar       |
+|  • Read Folders       |                            v      |  for configuring      |
+|  • Rename Files       |                       [Move To...] |  the selected box.    |
 |  • Compress Archives  |                                   |                       |
 |  • Convert Videos     |                                   |                       |
 +-----------------------+-----------------------------------+-----------------------+
@@ -52,10 +52,10 @@ When you open FileFlow Studio, the screen is organized into 4 intuitive sections
 +-----------------------------------------------------------------------------------+
 ```
 
-1. **Top Toolbar:** Large buttons to **Run**, **Simulate (Dry Run)**, **Pause**, **Undo**, **Save**, and toggle **Languages (English/Spanish)** or **Themes**.
-2. **Left Panel (Toolbox):** Your piece catalog. Search for what you want to do (e.g., *"Photos"*, *"Rename"*, *"Unpack"*) and drag it to the center.
-3. **Center (Canvas / Workspace):** Where you drop boxes and connect them with wires.
-4. **Right Panel (Node Inspector):** When you click any box on the canvas, its options appear here in clear language (e.g., *"Where do you want to save the photos?"* or *"What format do you prefer?"*).
+1. **Top Toolbar:** Large buttons to **Run**, **Simulate (Dry Run)**, **Pause**, **Undo**, **Save**, and access **Settings & Theming**.
+2. **Left Panel (Toolbox):** Your piece catalog with an intuitive category dropdown filter (*Files*, *Photos*, *AI*, *Network*, etc.) and live search. Drag any box to the canvas.
+3. **Center (Canvas / Workspace):** Where you drop boxes and connect them with wires. You can select multiple items with rubberband selection.
+4. **Right Panel (Node Inspector):** Segmented tab bar presenting parameters in grouped cards with contextual helpers.
 5. **Bottom Panel (Console):** Displays live, millisecond-by-millisecond progress for every processed file.
 
 ---

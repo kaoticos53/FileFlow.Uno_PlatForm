@@ -22,6 +22,38 @@
 
 ## Ventana viva
 
+## [2026-10-01] - Hito 303: Consolidación Integral, Limpieza de Código y Actualización Documental Multiplataforma
+
+### 🎯 El encargo
+«El proyecto ya no depende en nada de Avalonia (debe haberse eliminado totalmente) y debe compilar para entornos multiplataforma (Windows, Linux, macOS, Web...). La documentación en general se ha quedado un poco desactualizada, así como los ficheros auxiliares para los agentes de IA, manuales, etc. Analiza todo y crea un plan de actuación por fases para limpiar de ficheros y clases inútiles heredadas y actualiza toda la documentación con las características actuales de la aplicación.»
+
+### 🔬 El diagnóstico
+- **Código y concurrencia**: La purga de Avalonia completada en los hitos 301 y 302 requería una revisión de robustez de sincronización atómica en segundo plano (`SystemPerformanceMonitor` usando `Interlocked.CompareExchange` y `Interlocked.Exchange` para eliminar potenciales condiciones de carrera en ráfagas de ticks asíncronos).
+- **Documentación desfasada**: Los manuales de usuario y guías técnicas (`manual_de_usuario.md`, `user_manual.md`, `manual_usuario_principiantes.md`, `beginner_user_guide.md`, `manual_nodo_scripting.md`, `scripting_node_manual.md`, `architecture.md`, `ARCHITECTURE_DEEP_DIVE.md`, `api_reference.md`) conservaban menciones a nombres de ventanas heredadas (`*Window.axaml`), descripciones de herramientas anteriores a las pestañas segmentadas (*Tab Bars*) en Ajustes e Inspector, y carecían de la descripción de las capacidades actuales del lienzo (selección rectangular mixta, multiselección con `Ctrl`, borrado transaccional atómico, selector desplegable de categorías en la Caja de Herramientas y modales redimensionables con scroll de rueda de ratón).
+- **Ficheros auxiliares de agentes**: `.agents/architecture.md` y la base de conocimiento requerían reflejar con exactitud la topología de 4 capas, los 11 plugins y los contratos de superficies desacopladas.
+
+### 🧱 Las piezas
+- **Concurrencia atómica**: `SystemPerformanceMonitor.cs` actualizado con `Interlocked.CompareExchange(ref _isSampling, 1, 0)` y `Interlocked.Exchange(ref _disposed, 1)`, asegurando determinismo total en hilos concurrentes.
+- **Manuales de usuario actualizados (Español e Inglés)**:
+  - `manual_de_usuario.md` y `user_manual.md`: renovados con la descripción de las superficies modales de Uno (`DataSetDesignerBody`, `AdvancedRenamerBody`, `VariablePickerDialogBody`, `VirtualFileSystemExplorerBody`), la navegación por pestañas en Ajustes e Inspector, el selector desplegable con badges en la Caja de Herramientas, y la selección rectangular de nodos y cables.
+  - `manual_usuario_principiantes.md` y `beginner_user_guide.md`: actualizados con soporte multiplataforma (papelera nativa del SO) y el mapa visual moderno de 4 zonas.
+  - `manual_nodo_scripting.md` y `scripting_node_manual.md`: tokens generalizados a nivel de sistema operativo (`{UserName}`).
+- **Documentación técnica y arquitectura**:
+  - `architecture.md` y `ARCHITECTURE_DEEP_DIVE.md`: diagramas Mermaid actualizados reflejando los 11 plugins, 70 nodos, las 4 capas desacopladas (`FileFlow.Sdk`, `FileFlow.Core`, `FileFlow.App.Core`, `FileFlow.App.Uno`) y los targets de compilación Uno Platform.
+  - `api_reference.md`: sincronizado con la definición real de `FileItemContext` como `record` C# 14 y documentados los contratos `INodeDialogSurfaceProvider` y `UnavailableSurface`.
+  - `.agents/architecture.md`: mapa exhaustivo del repositorio para agentes de IA.
+
+### 📊 Validación
+| Medida | Resultado |
+| :--- | :--- |
+| `dotnet build FileFlow.slnx` | **0 advertencias, 0 errores** |
+| Matriz multiplataforma (`.\build-matrix.ps1`) | **Desktop Skia (`net10.0-desktop`) y Web WASM (`net10.0-browserwasm`) superados con 0 errores** |
+| Suite completa (`dotnet test`) | **1.755 superadas, 1 omitida, 0 errores (100% éxito)** |
+| Sondeo runtime Uno (`.\run-uno-fast.ps1 -SelfCheck`) | **VERIFICADO (exit code 0)** |
+
+### 🟠 Fronteras
+- Los manuales en formato PDF binario existentes son generados a partir de los archivos Markdown correspondientes; los archivos Markdown quedan consolidados como la fuente de verdad canónica.
+
 ## [2026-09-30] - Hito 302: Unificación de la terminología de código — los comentarios dejan de describir el host de escritorio retirado
 
 ### 🎯 El encargo

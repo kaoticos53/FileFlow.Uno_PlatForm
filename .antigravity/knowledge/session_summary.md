@@ -13,6 +13,19 @@ Este documento se actualiza al finalizar cada sesión de trabajo para consolidar
 
 ## 0. Hito más reciente
 
+- **303. Consolidación Integral, Limpieza de Código y Actualización Documental Multiplataforma (2026-10-01)**:
+  - **El encargo**: «El proyecto ya no depende en nada de Avalonia (debe haberse eliminado totalmente) y debe compilar para entornos multiplataforma (Windows, Linux, macOS, Web...). La documentación en general se ha quedado un poco desactualizada, así como los ficheros auxiliares para los agentes de IA, manuales, etc. Analiza todo y crea un plan de actuación por fases para limpiar de ficheros y clases inútiles heredadas y actualiza toda la documentación con las características actuales de la aplicación.»
+  - **🔬 Diagnóstico**: La purga de Avalonia completada en los hitos 301/302 requería afinar la concurrencia atómica de hilos en segundo plano (`SystemPerformanceMonitor` con `Interlocked.CompareExchange` y `Interlocked.Exchange`) y actualizar exhaustivamente la documentación técnica y de usuario (`manual_de_usuario.md`, `user_manual.md`, `manual_usuario_principiantes.md`, `beginner_user_guide.md`, `manual_nodo_scripting.md`, `scripting_node_manual.md`, `architecture.md`, `ARCHITECTURE_DEEP_DIVE.md`, `api_reference.md`, `.agents/architecture.md`) que aún referenciaban nombres de ventanas heredadas (`*Window.axaml`) o carecían de la descripción de las capacidades actuales de la UI (pestañas modernas en Ajustes e Inspector, selector desplegable de categorías en la Caja de Herramientas, selección rectangular mixta y modales redimensionables con scroll fluido).
+  - **🧱 Acciones**:
+    - **Concurrencia atómica**: `SystemPerformanceMonitor.cs` protegido contra reentradas y desecho asíncrono con `Interlocked.CompareExchange` / `Interlocked.Exchange`.
+    - **Manuales de usuario (ES/EN)**: Actualizados con las superficies modales de Uno (`DataSetDesignerBody`, `AdvancedRenamerBody`, `VariablePickerDialogBody`, `VirtualFileSystemExplorerBody`), pestañas en Ajustes/Inspector, selector desplegable con badges reactivos y selección compuesta.
+    - **Documentación técnica y SDK**: Diagramas de arquitectura Mermaid con 11 plugins, 70 nodos y 4 capas desacopladas (`FileFlow.Sdk`, `FileFlow.Core`, `FileFlow.App.Core`, `FileFlow.App.Uno`); contratos `INodeDialogSurfaceProvider` y `UnavailableSurface` documentados; `.agents/architecture.md` actualizado.
+  - **📊 Validación del estado**:
+    - `dotnet build FileFlow.slnx`: **0 advertencias, 0 errores**.
+    - Matriz multiplataforma (`.\build-matrix.ps1`): **Desktop Skia y Web WASM superados con 0 errores**.
+    - Suite completa (`dotnet test`): **1.755 superadas, 1 omitida, 0 errores (100% éxito)**.
+    - Sondeo runtime Uno (`.\run-uno-fast.ps1 -SelfCheck`): **VERIFICADO (exit code 0)**.
+
 - **302. Unificación de la Terminología de Código: el Host de Escritorio Retirado Fuera de los Comentarios (2026-09-30)**:
   - **El encargo**: «Termina de limpiar la documentación de código: reescribe los comentarios que aún describen un host de escritorio inexistente y unifica la terminología en todo el árbol.»
   - **🔬 Diagnóstico**: la purga del 301 sacó Avalonia del producto, pero los comentarios seguían nombrando el host retirado por sus otros nombres (Nodify, WPF, ESCRITORIO, «host original»); sobrevivía un bloque **muerto** de guardia sobre una ventana eliminada (`MediaPresetManagerWindow.axaml` — no queda ningún `.axaml`), y varios identificadores y prosas de mutación seguían citando «escritorio».

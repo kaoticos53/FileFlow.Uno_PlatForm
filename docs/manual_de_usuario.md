@@ -21,7 +21,7 @@
    - [Sistema de Rollback Transaccional (LIFO)](#sistema-de-rollback-transaccional-lifo)
    - [Depuración Interactiva con Puntos de Interrupción (Breakpoints)](#depuración-interactiva-con-puntos-de-interrupción-breakpoints)
    - [Sistema de Archivos Virtual (VFS) y Banco de Pruebas No Destructivo](#sistema-de-archivos-virtual-vfs-y-banco-de-pruebas-no-destructivo)
-   - [Diseñador Visual de Conjuntos de Datos Sintéticos](#diseñador-visual-de-conjuntos-de-datos-sintéticos-syntheticdatasetdesignerwindow)
+   - [Diseñador Visual de Conjuntos de Datos Sintéticos](#diseñador-visual-de-conjuntos-de-datos-sintéticos)
    - [Simulación Híbrida de Archivos Comprimidos](#simulación-híbrida-de-archivos-comprimidos-zip-rar-7z)
 4. [Motor de Tokens y Variables Dinámicas](#4-motor-de-tokens-y-variables-dinámicas)
    - [Sintaxis y Dominios](#sintaxis-y-dominios)
@@ -62,8 +62,13 @@
 
 ### Lienzo de Nodos Interactivo (DAG)
 El lienzo visual permite modelar tuberías de trabajo arrastrando nodos desde la **Caja de Herramientas (Toolbox)**:
+- **Caja de Herramientas con Filtro Desplegable**: Selector desplegable de categorías con conteo dinámico de nodos (`ComboBox`) y buscador en tiempo real. Las categorías se presentan en tarjetas destacadas de alto contraste y los nodos subordinados con indentación jerárquica.
 - **Puertos de Entrada (Izquierda)**: Reciben archivos entrantes (`In`, `BranchA`, `Files`).
 - **Puertos de Salida (Derecha)**: Emiten elementos procesados o bifurcaciones condicionales (`Out`, `Done`, `Error`, `Matched`, `Unmatched`).
+- **Selección y Manipulación Avanzada**:
+  - *Selección Rectangular Mixta*: Arrastra sobre el lienzo para capturar nodos y cables de forma simultánea.
+  - *Multiselección Acumulativa*: Mantén pulsada la tecla `Ctrl` para añadir elementos a la selección.
+  - *Borrado Atómico*: La tecla `Supr` elimina nodos y cables seleccionados en una sola transacción atómica de Deshacer (`Ctrl+Z`) y Rehacer (`Ctrl+Y`).
 - **Indicador LED de Estado**:
   - ⚪ *Gris (Inactivo)*: En espera.
   - 🔵 *Azul Pulsante (En Ejecución)*: Procesando elementos en tiempo real.
@@ -94,11 +99,13 @@ Encapsula sub-grafos complejos dentro de nodos compuestos:
 3. Al pulsar un nivel superior, el sub-flujo se valida y vuelve al lienzo padre.
 
 ### Telemetría Reactiva en Conexiones
-Cada conexión física entre nodos cuenta con un indicador numérico en tiempo real (ej. `⚡ 2,450`) que informa cuántos archivos han atravesado ese enlace, facilitando el diagnóstico visual instantáneo.
+Cada conexión física entre nodos cuenta con un indicador numérico en tiempo real (ej. `⚡ 2,450`) que informa cuántos archivos han atravesado ese enlace, con cálculo geométrico Bézier directo a las anclas de los puertos.
 
-### Visor Rápido QuickLook e Inspector
-- Pulsa la tecla `Espacio` o el botón `👁️ QuickLook` en cualquier nodo o elemento del registro para previsualizar instantáneamente imágenes, texto, PDFs o tablas de metadatos.
-- El **Inspector Lateral** expone todos los parámetros del nodo seleccionado con controles enriquecidos (selectores de archivo, sliders, checkboxes y desplegables reactivos).
+### Inspector de Nodos, Ajustes y Diálogos Modales
+- **Inspector Lateral de Nodos**: Organizado mediante una barra de pestañas segmentada (*Tab Bar* moderna) sin glifos circulares, tarjetas de parámetros con layout adaptativo y botones contextuales (`{x}` para catálogo de variables, `🏷️` para pipeline de renombrado, `🎬` para presets de medios, `🔑` para gestor de contraseñas). Al colapsar el inspector, el lienzo reclama automáticamente el 100% del espacio visual.
+- **Diálogo de Ajustes**: Navegación por barra de pestañas moderna para conmutar fluidamente entre Almacenamiento, Apariencia e Idioma, Rendimiento, Herramientas, Modelos de IA y Actualizaciones.
+- **Diálogos Modales Ricos y Redimensionables**: Diálogos modales con soporte nativo de desplazamiento fluido por rueda de ratón, tirador de redimensionamiento manual por arrastre y botón de maximizar/restaurar (`[+]` / `[-]`).
+- **Visor Rápido QuickLook**: Pulsa la tecla `Espacio` o el botón `👁️ QuickLook` en cualquier nodo o elemento del registro para previsualizar imágenes, texto, PDFs o metadatos.
 
 ### Abrir y Guardar Flujos: la Versión del Archivo
 Cada flujo guardado declara con qué formato está escrito, y la aplicación se ocupa del resto:
@@ -137,7 +144,7 @@ Para diseñar, validar y depurar tuberías complejas sin manipular discos físic
 1. **Activación Automática**:
    - Al colocar el nodo **`SyntheticDataSourceNode`** o marcar elementos virtuales (`IsVirtual = true`), el motor DAG (`WorkflowExecutor`) activa en memoria un almacén aislado de sistema de archivos virtual (`IVirtualFileSystemStore`).
    - Los nodos de destino y reorganización (**`DestinationSinkNode`**, **`FileRelocatorNode`**, **`SafeRecycleDeleteNode`**, **`OriginalFileActionNode`**) detectan el entorno virtual y redirigen automáticamente sus escrituras, copias, movimientos y borrados lógicos hacia el VFS sin arrojar errores de I/O ni ensuciar carpetas reales.
-2. **Explorador Visual VFS (`VirtualFileSystemExplorerWindow`)**:
+2. **Explorador Visual VFS (`VirtualFileSystemExplorerBody`)**:
    - Tras completar una ejecución con datos virtuales, la barra superior muestra el botón reactivo **`🗂️ VFS (N)`** informando del total de archivos generados. También se accede permanentemente desde el Drawer lateral.
    - **Vista Dividida en 3 Columnas**:
      - *Árbol de Directorios*: Estructura jerárquica reactiva de carpetas creadas en memoria.
@@ -145,13 +152,13 @@ Para diseñar, validar y depurar tuberías complejas sin manipular discos físic
      - *Inspector de Metadatos*: Panel derecho categorizado por dominios (Fotografía/EXIF, Música/Audio ID3, Cine/Vídeo, Documentos/Fiscal y Sumas Criptográficas SHA/MD5).
    - **Herramientas de Exportación**:
      - `📋 Copiar Árbol`: Genera un diagrama jerárquico ASCII formateado al portapapeles.
-     - `📂 Abrir en Explorador`: Materializa el estado del VFS en una carpeta temporal segura (`%TEMP%/FileFlow_VFS_Sandbox/...`) y la abre en el Explorador de archivos de Windows.
+     - `📂 Abrir en Explorador`: Materializa el estado del VFS en una carpeta temporal segura (`%TEMP%/FileFlow_VFS_Sandbox/...`) y la abre en el explorador de archivos nativo del sistema operativo.
 
-### Diseñador Visual de Conjuntos de Datos Sintéticos (`SyntheticDataSetDesignerWindow`)
+### Diseñador Visual de Conjuntos de Datos Sintéticos
 Permite al usuario crear, editar, guardar y reutilizar bancos de pruebas personalizados con estructuras de carpetas a medida:
 - **Acceso Directo**:
   1. Botón `🎨 Diseñar Conjuntos de Datos...` en el inspector del nodo `SyntheticDataSourceNode`.
-  2. Botón `📊 Diseñador...` en la barra de muestras del Estudio de Renombrado (`AdvancedRenamerEditorWindow`).
+  2. Botón `📊 Diseñador...` en la barra de muestras del Estudio de Renombrado (`AdvancedRenamerBody`).
   3. Opción `📊 Diseñador de Datos Sintéticos` en el Drawer lateral de la ventana principal.
 - **Catálogo de Datasets**:
   - Buscador reactivo por nombre y categoría.

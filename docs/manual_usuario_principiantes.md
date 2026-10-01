@@ -27,7 +27,7 @@ Mucha gente tiene miedo de usar programas automáticos por si borran o estropean
 1. **Tus archivos originales no se tocan por defecto:** Las transformaciones crean copias ordenadas en carpetas nuevas.
 2. **El Botón Mágico "Simulación Virtual" (Dry Run):** Puedes probar cualquier flujo sin que se mueva ni un solo archivo real. El programa te mostrará una simulación exacta de qué haría antes de pulsar el botón real.
 3. **El Botón "Deshacer" (Rollback):** Si ejecutas algo y no te convence el resultado, pulsas el botón **Deshacer (Ctrl+Z)** y todos los archivos vuelven exactamente a su nombre y sitio original.
-4. **Papelera de Reciclaje:** Si alguna vez decides eliminar algo a propósito, el programa nunca lo destruye; lo envía a la Papelera de Reciclaje de Windows para que puedas recuperarlo en cualquier momento.
+4. **Papelera de Reciclaje:** Si alguna vez decides eliminar algo a propósito, el programa nunca lo destruye; lo envía a la Papelera de Reciclaje del sistema operativo (Windows, Linux, macOS) para que puedas recuperarlo en cualquier momento.
 
 ---
 
@@ -37,13 +37,13 @@ Cuando abres FileFlow Studio, la pantalla se divide en 4 partes muy fáciles de 
 
 ```
 +-----------------------------------------------------------------------------------+
-|  Barra Superior: [ ▶ Ejecutar ]  [ 🔍 Simular (Dry Run) ]  [ ↩ Deshacer ]  [ 🎨 Tema ] |
+|  Barra Superior: [ ▶ Ejecutar ]  [ 🔍 Simular (Dry Run) ]  [ ↩ Deshacer ]  [ ⚙️ Ajustes ] |
 +-----------------------+-----------------------------------+-----------------------+
 |  IZQUIERDA            |  CENTRO (Mesa de Trabajo)         |  DERECHA              |
 |  Caja de Herramientas |                                   |  Inspector / Ajustes  |
 |  (Los Nodos)          |  [Carpeta Origen] -> [Renombrar]  |                       |
-|                       |                           \       |  Aquí configuras      |
-|  • Leer Carpetas      |                            v      |  las opciones de la   |
+|  [Filtro Categoría v] |                           \       |  Pestañas modernas    |
+|  • Leer Carpetas      |                            v      |  para configurar la   |
 |  • Renombrar          |                      [Mover a...] |  caja seleccionada.   |
 |  • Comprimir          |                                   |                       |
 |  • Convertir Vídeo    |                                   |                       |
@@ -52,10 +52,10 @@ Cuando abres FileFlow Studio, la pantalla se divide en 4 partes muy fáciles de 
 +-----------------------------------------------------------------------------------+
 ```
 
-1. **Barra Superior:** Botones grandes para **Ejecutar**, **Simular (Dry Run)**, **Pausar**, **Deshacer**, **Guardar** y cambiar el **Idioma o Tema**.
-2. **Panel Izquierdo (Caja de Herramientas):** Es tu catálogo de piezas. Buscas lo que quieres hacer (ej: *"Fotos"*, *"Renombrar"*, *"Descomprimir"*) y lo arrastras con el ratón al centro.
-3. **Centro (Lienzo / Mesa de Trabajo):** El espacio donde colocas tus cajas y las conectas entre sí mediante cables.
-4. **Panel Derecho (Inspector de Ajustes):** Cuando haces clic en cualquier caja de la mesa, aquí aparecen sus opciones explicadas en español claro (por ejemplo: *"¿Dónde quieres guardar las fotos?"* o *"¿Qué formato prefieres?"*).
+1. **Barra Superior:** Botones claros para **Ejecutar**, **Simular (Dry Run)**, **Pausar**, **Deshacer**, **Guardar** y acceso a **Ajustes y Temas**.
+2. **Panel Izquierdo (Caja de Herramientas):** Es tu catálogo de piezas con un cómodo buscador desplegable por categorías (*Archivos*, *Fotos*, *IA*, *Red*, etc.). Arrastras la caja deseada al centro.
+3. **Centro (Lienzo / Mesa de Trabajo):** El espacio donde colocas tus cajas y las conectas entre sí mediante cables. Puedes seleccionar varios elementos arrastrando un recuadro.
+4. **Panel Derecho (Inspector de Ajustes):** Organizado en pestañas limpias. Al hacer clic en cualquier caja, aquí aparecen sus opciones explicadas con claridad (ej: *"¿Dónde quieres guardar las fotos?"*).
 5. **Panel Inferior (Consola):** Muestra mensajes paso a paso con lo que se está procesando en cada milisegundo.
 
 ---

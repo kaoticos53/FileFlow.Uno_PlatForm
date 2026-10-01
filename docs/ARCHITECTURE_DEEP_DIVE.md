@@ -7,14 +7,14 @@ Este documento describe de forma exhaustiva el funcionamiento interno de **FileF
 ## 🎯 Nivel 1: Conceptos Básicos y Visión General (Principiante)
 
 ### ¿Qué es FileFlow Studio?
-FileFlow Studio es una plataforma visual basada en **nodos interconectados** para automatizar el procesamiento, conversión, organización y análisis de archivos y carpetas en Windows.
+FileFlow Studio es una plataforma visual basada en **nodos interconectados** para automatizar el procesamiento, conversión, organización y análisis masivo de archivos y carpetas de forma multiplataforma (Windows, Linux, macOS, Web WASM, iOS).
 
 ```
 [Carpeta Origen] ───(Salida)───► (Entrada)─── [Optimizador de Imágenes] ───(Salida)───► (Entrada)─── [Carpeta Destino]
 ```
 
 ### Componentes Visuales del Flujo:
-1. **Nodo**: Una unidad independiente de procesamiento (ej. *Descompresión Inteligente*, *Optimizador de Imágenes*).
+1. **Nodo**: Una unidad independiente de procesamiento (ej. *Descompresión Inteligente*, *Optimizador de Imágenes*, *Inferencia de IA*).
 2. **Puertos de Entrada (Inputs)**: Puntos por los que el nodo recibe los elementos a procesar.
 3. **Puertos de Salida (Outputs)**: Puntos por los que el nodo emite los elementos procesados o filtrados (ej. *Salida*, *Aprobados*, *Rechazados*, *Error*).
 4. **Conexiones (Wires)**: Tuberías virtuales que unen un puerto de salida con un puerto de entrada.
@@ -29,23 +29,28 @@ FileFlow Studio se estructura en 4 capas estrictamente desacopladas:
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│                   FileFlow.App.Uno (Uno Platform)                   │
-│      (MVVM, lienzo DAG Canvas, Estilos, Localización)      │
+│                   FileFlow.App.Uno                     │
+│    (Host UI Único: WinUI 3 / Skia Desktop / WASM / iOS)│
+└──────────────────────────┬─────────────────────────────┘
+                           │
+┌──────────────────────────▼─────────────────────────────┐
+│                 FileFlow.App.Core                      │
+│   (Capa de Presentación Portable: ViewModels & Temas)  │
 └──────────────────────────┬─────────────────────────────┘
                            │
 ┌──────────────────────────▼─────────────────────────────┐
 │                 FileFlow.Core (Motor)                  │
-│  (Grafo, Validaciones, WorkflowExecutor, PluginLoader) │
+│  (Grafo DAG, Canales, WorkflowExecutor, PluginLoader)  │
 └──────────────────────────┬─────────────────────────────┘
                            │
 ┌──────────────────────────▼─────────────────────────────┐
-│               FileFlow.Plugin.* (Plugins)              │
-│    (FileSystem, Archives, Images, Plugins de Terceros) │
+│               FileFlow.Plugin.* (11 Plugins)           │
+│  (FileSystem, Archives, Images, AI, Network, Script...)│
 └──────────────────────────┬─────────────────────────────┘
                            │
 ┌──────────────────────────▼─────────────────────────────┐
 │                   FileFlow.Sdk (Puro)                  │
-│       (IFlowNode, FileItemContext, Localization)       │
+│  (IFlowNode, FlowNodeBase, FileItemContext, Modales)   │
 └────────────────────────────────────────────────────────┘
 ```
 

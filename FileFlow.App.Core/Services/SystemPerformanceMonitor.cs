@@ -37,8 +37,8 @@ public class SystemPerformanceMonitor : ISystemPerformanceMonitor
     private readonly Process _currentProcess;
     private TimeSpan _lastCpuTime;
     private DateTime _lastSampleTime;
-    private bool _disposed;
-    private bool _isSampling;
+    private int _disposed;
+    private int _isSampling;
 
     public event Action<PerformanceMetrics>? PerformanceUpdated;
 
@@ -79,13 +79,12 @@ public class SystemPerformanceMonitor : ISystemPerformanceMonitor
     /// </summary>
     public async Task SampleNowAsync()
     {
-        if (_isSampling || _disposed) return;
-        _isSampling = true;
+        if (Interlocked.CompareExchange(ref _isSampling, 1, 0) != 0 || Volatile.Read(ref _disposed) != 0) return;
 
         try
         {
             var metrics = await Task.Run(() => SampleMetrics()).ConfigureAwait(true);
-            if (!_disposed)
+            if (Volatile.Read(ref _disposed) == 0)
             {
                 PerformanceUpdated?.Invoke(metrics);
             }
@@ -96,7 +95,7 @@ public class SystemPerformanceMonitor : ISystemPerformanceMonitor
         }
         finally
         {
-            _isSampling = false;
+            Interlocked.Exchange(ref _isSampling, 0);
         }
     }
 
@@ -129,11 +128,10 @@ public class SystemPerformanceMonitor : ISystemPerformanceMonitor
 
     public void Dispose()
     {
-        if (!_disposed)
+        if (Interlocked.Exchange(ref _disposed, 1) == 0)
         {
             _sampleBeat.Dispose();
             _currentProcess.Dispose();
-            _disposed = true;
         }
     }
 }

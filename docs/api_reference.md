@@ -53,35 +53,42 @@ public interface IFlowNode
 ---
 
 ### 1.2. `FileItemContext`
-Representa el estado y metadatos de un archivo en tránsito a lo largo de los nodos del flujo de trabajo.
+Representa el estado y metadatos de un archivo en tránsito a lo largo de los nodos del flujo de trabajo. Es un `record` inmutable/transmutable con accesores de ultra-bajo coste (zero-alloc):
 
 ```csharp
 namespace FileFlow.Sdk;
 
-public class FileItemContext
+public record FileItemContext
 {
-    public Guid Id { get; }
-    public string OriginalPath { get; set; }
-    public string CurrentPath { get; set; }
-    public long SizeBytes { get; set; }
-    public DateTime CreatedAtUtc { get; set; }
-    public Dictionary<string, object?> Variables { get; }
-    public Dictionary<string, object?> Metadata { get; }
-
-    // Accesores Memoizados de Ultra-Bajo Costo (Zero-Alloc Hot Paths)
+    public Guid Id { get; init; } = Guid.NewGuid();
     public string IdString { get; }
     public string ShortIdString { get; }
+    public string CurrentPath { get; set; }
+    public string OriginalPath { get; set; }
+    public string PhysicalPath { get; set; }
     public string FileName { get; }
-    public string FileExtension { get; }
+    public long FileSizeBytes { get; set; }
+    public bool IsDirectory { get; set; }
+    public Dictionary<string, object?> Metadata { get; init; }
+    public Dictionary<string, string> FileVersions { get; init; }
+    public HashSet<string> Tags { get; init; }
+    public List<string> ExecutionLog { get; init; }
 
-    public FileItemContext(string filePath);
     public FileItemContext Clone();
+    public FileItemContext DeepClone();
 }
 ```
 
 ---
 
-### 1.3. `IFlowExecutionContext`
+### 1.3. `INodeDialogSurfaceProvider` & `UnavailableSurface`
+Contratos para la exposición y desacoplamiento de interfaces y diálogos modales ricos:
+- **`INodeDialogSurfaceProvider`**: Permite a un nodo declarar que proporciona una superficie de configuración rica identificada por una clave de `DialogKeys` (ej. `AdvancedRenamer`, `DataSetDesigner`, `MediaPresetManager`, `PasswordManager`), inyectando su ViewModel portable.
+- **`UnavailableSurface`**: Costura y red de seguridad cuando un host o entorno no puede montar la superficie solicitada, emitiendo una notificación de usuario localizada y trazas de diagnóstico seguras.
+
+---
+
+### 1.4. `IFlowExecutionContext`
 Proporciona al nodo acceso al entorno de ejecución global, emisión de elementos y telemetría estructurada.
 
 ```csharp
@@ -92,6 +99,7 @@ public interface IFlowExecutionContext
     CancellationToken CancellationToken { get; }
     bool IsDryRun { get; }
     string ExecutionId { get; }
+    ITempWorkspaceManager TempWorkspace { get; }
     
     ValueTask EmitAsync(FileItemContext item, string outputPinName = "Output");
     void SetGlobalVariable(string key, object? value);

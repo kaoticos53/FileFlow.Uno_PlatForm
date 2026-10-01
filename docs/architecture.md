@@ -13,16 +13,25 @@ El proyecto se rige por un **desacoplamiento estricto por capas**, asegurando qu
 ```mermaid
 graph TD
     subgraph Capa_Presentacion ["Capa de Presentación (FileFlow.App.Uno)"]
-        UI["Uno Platform UI (lienzo DAG / MVVM / Virtualized DataGrid)"]
-        VM["ViewModels (Main, Editor, Node, ControlBar, Log)"]
-        CV["ValueConverters (LogLevel, Badges, EnumToBool)"]
-        UI --> VM
+        UI["Uno Platform UI (WinUI 3 / Skia Desktop / WASM / iOS)"]
+        CV["ValueConverters (LogLevel, Badges, SocketMatrix)"]
+        SURF["Superficies Modales (Renamer, Datasets, VFS, Presets)"]
         UI --> CV
+        UI --> SURF
+    end
+
+    subgraph Capa_AppCore ["Capa de Presentación Portable (FileFlow.App.Core)"]
+        VM["ViewModels (Main, Editor, Node, ControlBar, Inspector, Log)"]
+        THM["ThemeManager & ThemeHostBridge"]
+        SPM["SystemPerformanceMonitor (Interlocked Heartbeat)"]
+        UI --> VM
+        VM --> THM
+        VM --> SPM
     end
 
     subgraph Capa_Orquestacion ["Capa de Orquestación y Telemetría (FileFlow.Core)"]
-        WE["WorkflowExecutor (DAG & Sub-Graphs)"]
-        PL["PluginLoader (Assembly Load Context)"]
+        WE["WorkflowExecutor (DAG Channels & Subflujos)"]
+        PL["PluginLoader (AssemblyLoadContext & Auto-Localization)"]
         FW["FolderWatcherService"]
         JE["ExecutionJournalService"]
         ACM["AdaptiveConcurrencyManager"]
@@ -30,41 +39,59 @@ graph TD
         WE --> JE
         WE --> ACM
         WE --> SQL
+        VM --> WE
+        VM --> PL
+        VM --> SQL
     end
 
-    subgraph Capa_Plugins ["Capa de Extensión / 24 Nodos (FileFlow.Plugin.*)"]
-        P_FS["FileFlow.Plugin.FileSystem (10 Nodos)"]
-        P_ARC["FileFlow.Plugin.Archives (3 Nodos)"]
-        P_IMG["FileFlow.Plugin.Images (2 Nodos)"]
-        P_INT["FileFlow.Plugin.Integrations (3 Nodos)"]
-        P_LOG["FileFlow.Plugin.Logic (5 Nodos)"]
-        P_HASH["FileFlow.Plugin.Hashing (2 Nodos)"]
+    subgraph Capa_Plugins ["11 Plugins Autónomos / 70 Nodos (FileFlow.Plugin.*)"]
+        P_FS["FileSystem (15 Nodos)"]
+        P_ARC["Archives (3 Nodos)"]
+        P_IMG["Images (4 Nodos)"]
+        P_NET["Network (2 Nodos)"]
+        P_AI["AI / ML (8 Nodos)"]
+        P_DOC["Documents (4 Nodos)"]
+        P_DATA["Data / Tabular (3 Nodos)"]
+        P_LOG["Logic (6 Nodos)"]
+        P_HASH["Hashing (3 Nodos)"]
+        P_SCR["Scripting (3 Nodos)"]
+        P_INT["Integrations (5 Nodos)"]
+        P_SUB["Subflows (1 Nodo)"]
     end
 
     subgraph Capa_Contratos ["Capa Base de Contratos (FileFlow.Sdk)"]
-        SDK_Node["IFlowNode & NodeExecutionStatus"]
-        SDK_Item["FileItemContext & Memoized Accessors"]
-        SDK_Ctx["IFlowExecutionContext & Telemetry Logger"]
+        SDK_Node["IFlowNode & FlowNodeBase"]
+        SDK_Item["FileItemContext & Metadata Engine"]
+        SDK_Ctx["IFlowExecutionContext & TempWorkspace"]
         SDK_Tpl["VariableTemplateResolver"]
-        SDK_Rec["StructuredLogRecord"]
+        SDK_Modal["INodeDialogSurfaceProvider & UnavailableSurface"]
     end
 
-    VM --> WE
-    VM --> PL
-    VM --> SQL
     PL --> P_FS
     PL --> P_ARC
     PL --> P_IMG
-    PL --> P_INT
+    PL --> P_NET
+    PL --> P_AI
+    PL --> P_DOC
+    PL --> P_DATA
     PL --> P_LOG
     PL --> P_HASH
+    PL --> P_SCR
+    PL --> P_INT
+    PL --> P_SUB
 
     P_FS --> SDK_Node
     P_ARC --> SDK_Node
     P_IMG --> SDK_Node
-    P_INT --> SDK_Node
+    P_NET --> SDK_Node
+    P_AI --> SDK_Node
+    P_DOC --> SDK_Node
+    P_DATA --> SDK_Node
     P_LOG --> SDK_Node
     P_HASH --> SDK_Node
+    P_SCR --> SDK_Node
+    P_INT --> SDK_Node
+    P_SUB --> SDK_Node
 
     WE --> SDK_Node
     WE --> SDK_Item
