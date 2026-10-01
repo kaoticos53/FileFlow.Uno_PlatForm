@@ -5,7 +5,7 @@
   "why": "Antes eran dos caminos excluyentes: si había un cable marcado, el Supr se llevaba los cables y DEJABA los nodos. Con una selección mixta —lo que deja el rectángulo— el usuario tenía que borrar en dos tandas (y deshacer otras dos). El mutante devuelve esa condición (los nodos sólo caen cuando no hay ningún cable marcado): el cable se borra y el nodo se queda, que es el defecto declarado al revés.",
   "edits": [
     {
-      "file": "FileFlow.App.Core/ViewModels/EditorViewModel.cs",
+      "file": "FileFlow.App.Core/ViewModels/EditorViewModel.Selection.cs",
       "replacements": [
         {
           "old": "        if (nodes.Count > 0)\n        {\n            DeleteNodesWithTheirConnections(nodes);\n            wires = wires.Where(Connections.Contains).ToList();\n        }\n",

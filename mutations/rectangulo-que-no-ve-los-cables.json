@@ -5,7 +5,7 @@
   "why": "El rectángulo elegía SÓLO tarjetas: pasar el lazo por encima de dos nodos dejaba el cable que los une sin marcar, así que el Supr no se lo llevaba y había que pulsar el cable uno a uno. El mutante vacía el conjunto de cables que entran —el área sigue eligiendo nodos y el Ctrl sigue conservando lo de fuera, pero ningún cable de dentro entra—: el usuario vuelve a tener que marcar los cables a mano.",
   "edits": [
     {
-      "file": "FileFlow.App.Core/ViewModels/EditorViewModel.cs",
+      "file": "FileFlow.App.Core/ViewModels/EditorViewModel.Selection.cs",
       "replacements": [
         {
           "old": "        var wantedConnections = new HashSet<ConnectionViewModel>(connectionsInside);",

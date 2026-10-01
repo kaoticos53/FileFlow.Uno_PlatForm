@@ -5,7 +5,7 @@
   "why": "Sin la mitad aditiva, el Ctrl del rectángulo no serviría para nada: el usuario que quiere sumar una zona a lo que ya tenía elegido la perdería al trazar el lazo. El mutante quita la unión con la base (el rectángulo se queda con lo que cae dentro y suelta lo de fuera aunque se pulse Ctrl): el gesto pierde la mitad que lo hace componible.",
   "edits": [
     {
-      "file": "FileFlow.App.Core/ViewModels/EditorViewModel.cs",
+      "file": "FileFlow.App.Core/ViewModels/EditorViewModel.Selection.cs",
       "replacements": [
         {
           "old": "        if (add)\n        {\n            wantedNodes.UnionWith(baseNodes);\n            wantedConnections.UnionWith(baseConnections);\n        }\n",

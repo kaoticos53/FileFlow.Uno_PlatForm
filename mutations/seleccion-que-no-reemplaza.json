@@ -5,7 +5,7 @@
   "why": "El defecto que la pide es de gesto: el clic en una tarjeta AÑADÍA a la selección en vez de reemplazarla, así que el Supr se llevaba de más. El mutante quita el bloque que suelta lo anterior (SelectNode pasa a ser siempre aditivo): el clic vuelve a acumular selección y el usuario no puede quedarse con un solo elemento elegido sin recurrir al Ctrl, que es el síntoma reportado al revés.",
   "edits": [
     {
-      "file": "FileFlow.App.Core/ViewModels/EditorViewModel.cs",
+      "file": "FileFlow.App.Core/ViewModels/EditorViewModel.Selection.cs",
       "replacements": [
         {
           "old": "    public void SelectNode(NodeViewModel node, bool add = false)\n    {\n        if (!add)\n        {\n            SelectedConnections.Clear();\n\n            foreach (var other in Nodes.Where(n => n.IsSelected && !ReferenceEquals(n, node)))\n            {\n                other.IsSelected = false;\n            }\n        }\n\n        node.IsSelected = true;\n",

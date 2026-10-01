@@ -13,6 +13,63 @@ Este documento se actualiza al finalizar cada sesión de trabajo para consolidar
 
 ## 0. Hito más reciente
 
+- **305. Modularización del Viewport, Navegación y Diagnósticos del Lienzo Uno (2026-10-01)**:
+  - **El encargo**: «continua con la opcion A». Desacoplar las rutinas de bajo nivel del lienzo visual (`EditorCanvasControl.xaml.cs`) relativas al zoom, encuadre de viewport, dibujo de la rejilla de fondo y diagnósticos de rastreo de foco a su propia clase parcial especializada (`EditorCanvasControl.Navigation.cs`).
+  - **🔬 Diagnóstico**: `EditorCanvasControl.xaml.cs` (2.910 líneas) albergaba código utilitario de navegación (`OnWheelChanged`, `OnZoomIn`, `OnZoomOut`, `ZoomBy`, `OnFitToScreen`), generación de la rejilla (`DrawBackgroundGrid`) y trazadores de foco de elementos visuales (`DescribeChain`, `DescribeFocused`, `DescribeThief`, `DescribeDataContext`, `DescribeOpenPopups`), mientras que `ProbeUiAccessibility()` y el peer `CanvasAutomationPeer` debían permanecer anclados en el archivo raíz por requisitos de guardias de AST.
+  - **🧱 Acciones**:
+    - Extraído `FileFlow.App.Uno/Controls/EditorCanvasControl.Navigation.cs` (~160 líneas).
+    - `EditorCanvasControl.xaml.cs` reducido a 2.765 líneas sin alterar las guardias de AST.
+  - **📊 Validación del estado**:
+    - `dotnet build FileFlow.slnx`: **0 advertencias, 0 errores**.
+    - Matriz multiplataforma (`.\build-matrix.ps1`): **Desktop Skia y Web WASM superados con 0 errores**.
+    - Suite completa (`dotnet test`): **1.751 superadas, 1 omitida, 0 errores (100% éxito)**.
+    - Sonda runtime Uno (`.\run-uno-fast.ps1 -SelfCheck`, `-SelfCheckControlBar`, `-SelfCheckSettings`, `-SelfCheckDialogs`): **VERIFICADOS (exit code 0)**.
+
+- **304. Refactorización Modular de ViewModels y Servicios Monolíticos («God Objects») (2026-10-01)**:
+  - **El encargo**: «Revisa todo el código y dime qué archivos o clases debería refactorizar. Crea un plan por fases para afrontar estas refactorizaciones.» Ejecutar la descomposición estructural de los monolitos de la aplicación identificados en el plan (`EditorViewModel`, `NodeParameterViewModel` y `UnoWindowService`), desacoplando responsabilidades en componentes cohesivos y clases parciales especializadas sin alterar el comportamiento observable, manteniendo la compatibilidad estricta con las guardias de AST del repositorio y asegurando el 100% de la suite de pruebas.
+  - **🔬 Diagnóstico**:
+    - `EditorViewModel.cs` (2.169 líneas): acumulaba lógicas diversas de manipulación de selección y rectángulos de selección, portapapeles (Copiar/Cortar/Pegar/Duplicar y reparación de conexiones perdidas), grupos y anotaciones de nodos, menú rápido Spotlight y gestión interactiva de cables y sockets.
+    - `NodeParameterViewModel.cs` (1.050 líneas): combinaba el estado y enlace MVVM de parámetros con detección heurística de rutas/formatos y el despacho de diálogos/selectores modales (gestor de contraseñas, explorador de variables, selección de ficheros y editor de texto multilínea).
+    - `UnoWindowService.cs` (1.144 líneas): albergaba utilidades de bajo nivel para scroll de rueda de ratón en `ContentDialog` de WinUI 3 junto con la orquestación de diálogos modales.
+    - Guardias AST (`ApplicationHeartbeatContractTests`, `DeferredWorkInventoryGuardTests`, `UnoDeclaredSurfaceGuardTests`) y 4 mutaciones dependían de líneas de `EditorViewModel.cs`.
+  - **🧱 Acciones**:
+    - **Descomposición de `EditorViewModel`**:
+      - `EditorViewModel.Selection.cs` (~300 líneas): selección rectangular, multiselección con Ctrl, cálculo de cajas delimitadoras y borrado de nodos y cables.
+      - `EditorViewModel.Clipboard.cs` (~250 líneas): operaciones de portapapeles y re-cableado de conexiones perdidas.
+      - `EditorViewModel.Groups.cs` (~80 líneas): agrupación, desagrupación y anotaciones.
+      - `EditorViewModel.Spotlight.cs` (~110 líneas): filtrado, búsqueda e instanciación en Spotlight.
+      - `EditorViewModel.Connections.cs` (~160 líneas): arrastre interactivo de cables, compatibilidad de sockets y desconexiones.
+      - `EditorViewModel.cs` reducido a 1.274 líneas, preservando los contratos auditados por las guardias de AST.
+    - **Descomposición de `NodeParameterViewModel`**:
+      - `NodeParameterViewModel.Detection.cs` (~85 líneas): heurística de carpetas, ficheros, multilínea y listas de opciones.
+      - `NodeParameterViewModel.Pickers.cs` (~175 líneas): selectores de variables, catálogo modal, exploradores de ficheros y editor de texto extendido.
+      - `NodeParameterViewModel.cs` reducido a 801 líneas, preservando los contratos `OpenPasswordManagerAsync` y `CoreDialogHost.ResolveDialogService`.
+    - **Desacoplamiento de `UnoWindowService`**:
+      - Extraído `FileFlow.App.Uno/Platform/ContentDialogWheelScroller.cs` (~140 líneas) como helper reutilizable de scroll para modales de WinUI 3, reduciendo `UnoWindowService.cs` a 988 líneas de orquestación pura.
+    - **Desacoplamiento de `EditorCanvasControl`**:
+      - Extraído `FileFlow.App.Uno/Controls/EditorCanvasControl.Overlays.cs` (~380 líneas) modularizando las capas superpuestas (decoradores de notas y grupos, arrastre interactivo, buscador Spotlight, migas de subflujos y banner de aviso), reduciendo `EditorCanvasControl.xaml.cs` a 2.910 líneas.
+    - **Desacoplamiento del Motor VLM (`MultimodalVlmClientEngine`)**:
+      - Extraído `FileFlow.Plugin.AI/Engines/MultimodalVlmClientEngine.Prompts.cs` (~210 líneas): catálogo de esquemas JSON estructurados (`GetPresetJsonSchema`), prompts de sistema/usuario multiidioma (`GetPresetPrompts`) y codificación/redimensionamiento bicúbico optimizado de imágenes Base64 (`PrepareImageAsBase64Jpeg`).
+      - Extraído `FileFlow.Plugin.AI/Engines/MultimodalVlmClientEngine.Json.cs` (~85 líneas): extracción robusta de bloques JSON markdown (`TryExtractValidJson`), validación y categorización de esquemas.
+    - **Desacoplamiento del Diseñador de Datasets Sintéticos (`SyntheticDataSetDesignerViewModel`)**:
+      - Extraído `FileFlow.Plugin.FileSystem/UI/ViewModels/SyntheticDataSetDesignerViewModel.Tree.cs` (~330 líneas): operaciones de construcción, ordenación y mutación del árbol jerárquico (`BuildTreeFromItems`, `AddFileToTree`, `AddFolderToTree`, `AddArchiveToTree`, `AddArchiveEntry`, `RemoveTreeNode`, `SyncItemsFromTree`).
+      - Extraído `FileFlow.Plugin.FileSystem/UI/ViewModels/SyntheticDataSetDesignerViewModel.Dsl.cs` (~80 líneas): serialización y parseo bidireccional entre vistas de DSL textual, JSON y definiciones de archivo en memoria (`ApplyDslToItems`, `ApplyJsonToItems`, `SyncViewsFromItems`, `RefreshJsonText`).
+      - `SyntheticDataSetDesignerViewModel.cs` queda reducido de 882 a 395 líneas, preservando los contratos `DeleteDataSetAsync` requeridos por las guardias.
+    - **Desacoplamiento del Catálogo de Presets de Renombrado (`RenamerPresetService`)**:
+      - Extraído `FileFlow.Sdk/Renaming/RenamerPresetService.Presets.cs` (~780 líneas): definiciones completas de presets deterministas de fábrica (Fotografía, Vídeo, Series, Audio, Web/SEO, Documentos y Pipeline de Limpieza).
+      - `RenamerPresetService.cs` queda reducido de 917 a 135 líneas de lógica de carga/guardado en cascada y serialización limpia.
+    - **Sincronización de mutaciones y cobertura**:
+      - Actualizadas 4 declaraciones de mutaciones (`borrado-que-deja-los-nodos.json`, `rectangulo-con-ctrl-que-reemplaza.json`, `rectangulo-que-no-ve-los-cables.json`, `seleccion-que-no-reemplaza.json`) hacia `EditorViewModel.Selection.cs`.
+      - Regenerado `mutations/COVERAGE.md` mediante `MutationDeclarationCoverageTests`.
+  - **📊 Validación del estado**:
+    - `dotnet build FileFlow.slnx`: **0 advertencias, 0 errores**.
+    - Suite completa (`dotnet test`): **1.751 superadas, 1 omitida, 0 errores (100% éxito)**.
+    - Cobertura de mutaciones (`MutationDeclarationCoverageTests`): **3 superadas, 0 errores**.
+    - Sondeo general runtime Uno (`.\run.ps1 -SelfCheck`): **VERIFICADO (83 comprobaciones OK, exit code 0)**.
+    - Sondeo de barra de control (`.\run-uno-fast.ps1 -SelfCheckControlBar`): **VERIFICADO (exit code 0)**.
+    - Sondeo de ajustes (`.\run-uno-fast.ps1 -SelfCheckSettings`): **VERIFICADO (exit code 0)**.
+    - Sondeo de diálogos (`.\run-uno-fast.ps1 -SelfCheckDialogs`): **VERIFICADO (exit code 0)**.
+
 - **303. Consolidación Integral, Limpieza de Código y Actualización Documental Multiplataforma (2026-10-01)**:
   - **El encargo**: «El proyecto ya no depende en nada de Avalonia (debe haberse eliminado totalmente) y debe compilar para entornos multiplataforma (Windows, Linux, macOS, Web...). La documentación en general se ha quedado un poco desactualizada, así como los ficheros auxiliares para los agentes de IA, manuales, etc. Analiza todo y crea un plan de actuación por fases para limpiar de ficheros y clases inútiles heredadas y actualiza toda la documentación con las características actuales de la aplicación.»
   - **🔬 Diagnóstico**: La purga de Avalonia completada en los hitos 301/302 requería afinar la concurrencia atómica de hilos en segundo plano (`SystemPerformanceMonitor` con `Interlocked.CompareExchange` y `Interlocked.Exchange`) y actualizar exhaustivamente la documentación técnica y de usuario (`manual_de_usuario.md`, `user_manual.md`, `manual_usuario_principiantes.md`, `beginner_user_guide.md`, `manual_nodo_scripting.md`, `scripting_node_manual.md`, `architecture.md`, `ARCHITECTURE_DEEP_DIVE.md`, `api_reference.md`, `.agents/architecture.md`) que aún referenciaban nombres de ventanas heredadas (`*Window.axaml`) o carecían de la descripción de las capacidades actuales de la UI (pestañas modernas en Ajustes e Inspector, selector desplegable de categorías en la Caja de Herramientas, selección rectangular mixta y modales redimensionables con scroll fluido).
