@@ -13,6 +13,28 @@ Este documento se actualiza al finalizar cada sesión de trabajo para consolidar
 
 ## 0. Hito más reciente
 
+- **316. Modernización y Unificación Centralizada del Almacenamiento de Datos (`AppPaths`) (2026-10-02)**:
+  - **El encargo**: «veo que los directorios donde la aplicacion guarda datos y los ajustes estan un poco dispersos. analiza donde se guardan actualmente los datos y propon un plan para unificarllo todo sigueindo loos patrones de las palicaciones modernas. procede»
+  - **🔬 Diagnóstico**:
+    - Rutas dispersas y marcas dispares (`FileFlow` vs `FileFlowStudio`, rutas hardcodeadas en `WorkflowCheckpointManager`, `SyntheticDataSetStorageService` y `AiModelCatalog`).
+    - Necesidad de separar datos itinerantes (`Roaming` / `XDG_CONFIG_HOME`) de datos locales pesados (`LocalAppData` / `XDG_DATA_HOME` / `XDG_CACHE_HOME`) para evitar saturación de perfiles corporativos con modelos ONNX de varios GB.
+    - Modo portable hermético en `AppBaseDir/data/` sin escribir en perfiles de usuario ni registro.
+  - **🧱 Acciones**:
+    - `FileFlow.Sdk/Storage/AppPaths.cs`:
+      - Unificada la marca a `FileFlowStudio`.
+      - Incorporadas propiedades de primer nivel: `LocalDataDirectory`, `CheckpointsDirectory`, `DataSetsDirectory`, `DataSetsFile`.
+      - Soporte estándar multiplataforma: Windows Roaming vs LocalAppData, Linux XDG (`XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME`), macOS Library.
+      - Rutina de migración automática transparente y no destructiva `MigrateLegacyLocations()` en `EnsureDirectories()`.
+    - `FileFlow.Core/Engine/WorkflowCheckpointManager.cs`: checkpoints migrados a `AppPaths.CheckpointsDirectory`.
+    - `FileFlow.Plugin.FileSystem/Services/SyntheticDataSetStorageService.cs`: datasets migrados a `AppPaths.DataSetsDirectory`.
+    - `FileFlow.Plugin.AI/Management/AiModelCatalog.cs`: fallbacks actualizados a `AppPaths.ModelsDirectory` y `AppPaths.AppName`.
+    - `FileFlow.Tests/Unit/Sdk/AppPathsTests.cs`: cobertura de tests actualizada y ampliada para todas las nuevas rutas.
+  - **📊 Validación**:
+    - `dotnet test`: **1.770 pruebas superadas al 100% (0 fallos, 1 omitida)**.
+    - `.\run.ps1 -SelfCheck`: **Código 0 (83 comprobaciones de lienzo y paneles OK)**.
+    - `.\run-uno-fast.ps1 -SelfCheckSettings`: **Código 0 (detecta `C:\Users\kaoti\AppData\Local\FileFlowStudio\models` y 24 modelos)**.
+    - `.\run-uno-fast.ps1 -SelfCheckControlBar`: **Código 0**.
+
 - **315. Eliminación Total de Referencias Residuales a `FileFlow.App.Uno` y Corrección de CI/CD (2026-10-02)**:
   - **El encargo**: «en la accion de github de release hay un aviso en la parte degeneracion para windows referente al nombre del ejecutable y en linux un error. haz que en todas partes el ejecutable se genere como FileFlow.App haciendo que no se genere el otro nombre FileFlow.App.Uno.exe. haz que todas las referencias a este ultimo sean ahora a FileFlow.App.exe para evitar futuros problemas.»
   - **🔬 Diagnóstico**: En GitHub Actions (`release.yml`), el empaquetado de Linux fallaba porque el AppDir intentaba hacer symlink y chmod sobre `FileFlow.App.Uno` (ahora nombrado `FileFlow.App`). En Windows, `dotnet publish` advertía por `NETSDK1198`.

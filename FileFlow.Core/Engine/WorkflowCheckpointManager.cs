@@ -37,10 +37,7 @@ public class WorkflowCheckpointManager
 
     public WorkflowCheckpointManager(string? baseDir = null)
     {
-        _checkpointDirectory = baseDir ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "FileFlowStudio",
-            "checkpoints");
+        _checkpointDirectory = baseDir ?? FileFlow.Sdk.Storage.AppPaths.CheckpointsDirectory;
 
         try
         {

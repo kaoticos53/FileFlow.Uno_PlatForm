@@ -1,15 +1,16 @@
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace FileFlow.Sdk.Storage;
 
 /// <summary>
 /// Proveedor centralizado de rutas del sistema de archivos para FileFlow Studio.
-/// Soporta modo instalado estándar (%AppData%/FileFlow/), modo portable autónomo (data/ en la carpeta del ejecutable)
-/// y migración transparente de versiones heredadas.
+/// Sigue las especificaciones modernas de cada plataforma (Windows Roaming vs LocalAppData,
+/// Linux XDG Base Directory Specification, macOS Library) y soporta modo portable 100% hermético.
 /// </summary>
 public static class AppPaths
 {
-    private static readonly string DefaultAppDataRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FileFlow");
+    public const string AppName = "FileFlowStudio";
     private static readonly string AppBaseDirectory = AppContext.BaseDirectory;
     private static string? _customDataDirectory;
     private static readonly Lock _lock = new();
@@ -48,9 +49,8 @@ public static class AppPaths
     }
 
     /// <summary>
-    /// Directorio raíz de datos de usuario (Modo Portable: AppBaseDir/data, Modo Instalado: %AppData%/FileFlow/).
-    /// Si el directorio portable no tiene permisos de escritura (ej. instalado en Program Files),
-    /// conmuta automáticamente a %AppData%/FileFlow/ para garantizar estabilidad total.
+    /// Directorio raíz de configuración y preferencias del usuario (Roaming / XDG_CONFIG).
+    /// En modo portable retorna AppBaseDir/data.
     /// </summary>
     public static string RootDirectory
     {
@@ -72,9 +72,84 @@ public static class AppPaths
                     }
                 }
 
-                return DefaultAppDataRoot;
+                return ResolveDefaultConfigRoot();
             }
         }
+    }
+
+    /// <summary>
+    /// Directorio raíz para datos locales de gran volumen, modelos, checkpoints y caché (LocalAppData / XDG_DATA / XDG_CACHE).
+    /// En modo portable retorna AppBaseDir/data (completamente aislado).
+    /// </summary>
+    public static string LocalDataDirectory
+    {
+        get
+        {
+            lock (_lock)
+            {
+                if (!string.IsNullOrEmpty(_customDataDirectory))
+                {
+                    return _customDataDirectory;
+                }
+
+                if (IsPortableMode)
+                {
+                    string portableData = Path.Combine(AppBaseDirectory, "data");
+                    if (IsDirectoryWritable(portableData))
+                    {
+                        return portableData;
+                    }
+                }
+
+                return ResolveDefaultLocalDataRoot();
+            }
+        }
+    }
+
+    private static string ResolveDefaultConfigRoot()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            string? xdgConfig = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+            if (!string.IsNullOrWhiteSpace(xdgConfig))
+            {
+                return Path.Combine(xdgConfig, "fileflow");
+            }
+            string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            return Path.Combine(home, ".config", "fileflow");
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            return Path.Combine(home, "Library", "Application Support", AppName);
+        }
+
+        // Windows (Roaming AppData)
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppName);
+    }
+
+    private static string ResolveDefaultLocalDataRoot()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            string? xdgData = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+            if (!string.IsNullOrWhiteSpace(xdgData))
+            {
+                return Path.Combine(xdgData, "fileflow");
+            }
+            string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            return Path.Combine(home, ".local", "share", "fileflow");
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            return Path.Combine(home, "Library", "Caches", AppName);
+        }
+
+        // Windows (Local AppData)
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppName);
     }
 
     /// <summary>
@@ -100,15 +175,27 @@ public static class AppPaths
         }
     }
 
-    // Subcarpetas estructuradas
+    // =========================================================================
+    // SUBDIRECTORIOS ESTRUCTURADOS (CONFIG & PRESETS)
+    // =========================================================================
     public static string ConfigDirectory => Path.Combine(RootDirectory, "config");
     public static string ThemesDirectory => Path.Combine(RootDirectory, "themes");
     public static string PresetsDirectory => Path.Combine(RootDirectory, "presets");
     public static string SamplesDirectory => Path.Combine(RootDirectory, "samples");
     public static string ScriptsDirectory => Path.Combine(RootDirectory, "scripts");
-    public static string LogsDirectory => Path.Combine(RootDirectory, "logs");
-    public static string PluginsDirectory => Path.Combine(RootDirectory, "plugins");
-    public static string ModelsDirectory => Path.Combine(RootDirectory, "models");
+    public static string DataSetsDirectory => Path.Combine(RootDirectory, "datasets");
+
+    // =========================================================================
+    // SUBDIRECTORIOS ESTRUCTURADOS (LOCAL DATA, MODELS, CACHE & LOGS)
+    // =========================================================================
+    public static string ModelsDirectory => Path.Combine(LocalDataDirectory, "models");
+    public static string CheckpointsDirectory => Path.Combine(LocalDataDirectory, "checkpoints");
+    public static string PluginsDirectory => Path.Combine(LocalDataDirectory, "plugins");
+    public static string LogsDirectory => Path.Combine(LocalDataDirectory, "logs");
+
+    // =========================================================================
+    // SALIDAS DE USUARIO Y TEMPORALES
+    // =========================================================================
 
     /// <summary>
     /// Ruta de salida global por defecto utilizada por los flujos y variables del sistema.
@@ -122,7 +209,7 @@ public static class AppPaths
             {
                 return Path.Combine(RootDirectory, "output");
             }
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "FileFlowStudio", "Output");
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), AppName, "Output");
         }
     }
 
@@ -138,7 +225,7 @@ public static class AppPaths
             {
                 return Path.Combine(RootDirectory, "temp");
             }
-            return Path.Combine(Path.GetTempPath(), "FileFlowStudio", "Temp");
+            return Path.Combine(Path.GetTempPath(), AppName, "Temp");
         }
     }
 
@@ -150,8 +237,6 @@ public static class AppPaths
     /// <summary>
     /// Limpia de forma segura y recursiva directorios y archivos temporales residuales o abandonados de ejecuciones anteriores.
     /// </summary>
-    /// <param name="maxAge">Antigüedad mínima para considerar un temporal como abandonado (por defecto 2 horas).</param>
-    /// <returns>Número total de bytes liberados en el disco.</returns>
     public static long CleanupStaleTempDirectories(TimeSpan? maxAge = null)
     {
         TimeSpan effectiveMaxAge = maxAge ?? TimeSpan.FromHours(2);
@@ -172,7 +257,6 @@ public static class AppPaths
 
             try
             {
-                // Limpieza de subdirectorios
                 foreach (var subDir in Directory.GetDirectories(root))
                 {
                     try
@@ -185,13 +269,9 @@ public static class AppPaths
                             totalBytesFreed += dirSize;
                         }
                     }
-                    catch
-                    {
-                        // Resistencia ante archivos bloqueados o en uso
-                    }
+                    catch { }
                 }
 
-                // Limpieza de archivos sueltos
                 foreach (var file in Directory.GetFiles(root))
                 {
                     try
@@ -229,13 +309,16 @@ public static class AppPaths
         }
     }
 
-    // Ficheros estándar de configuración del usuario
+    // =========================================================================
+    // FICHEROS ESTÁNDAR DE CONFIGURACIÓN Y PERSISTENCIA
+    // =========================================================================
     public static string UserPreferencesFile => Path.Combine(ConfigDirectory, "user_preferences.json");
     public static string ExternalToolsFile => Path.Combine(ConfigDirectory, "external_tools.json");
     public static string CustomThemesFile => Path.Combine(ThemesDirectory, "custom_themes.json");
     public static string RenamerPresetsFile => Path.Combine(PresetsDirectory, "renamer_presets.json");
     public static string MediaPresetsFile => Path.Combine(PresetsDirectory, "media_presets.json");
     public static string RegexLibraryFile => Path.Combine(PresetsDirectory, "regex_library.json");
+    public static string DataSetsFile => Path.Combine(DataSetsDirectory, "synthetic_datasets.json");
     public static string RenamerSamplesFile => Path.Combine(SamplesDirectory, "renamer_samples.json");
     public static string CrashLogFile => Path.Combine(LogsDirectory, "crash.log");
 
@@ -260,14 +343,17 @@ public static class AppPaths
         string[] dirsToCreate =
         [
             RootDirectory,
+            LocalDataDirectory,
             ConfigDirectory,
             ThemesDirectory,
             PresetsDirectory,
             SamplesDirectory,
             ScriptsDirectory,
+            DataSetsDirectory,
             LogsDirectory,
             PluginsDirectory,
             ModelsDirectory,
+            CheckpointsDirectory,
             DefaultTempDirectory
         ];
 
@@ -280,10 +366,7 @@ public static class AppPaths
                     Directory.CreateDirectory(dir);
                 }
             }
-            catch
-            {
-                // Resistencia ante permisos restrictivos por carpeta
-            }
+            catch { }
         }
 
         try
@@ -293,32 +376,63 @@ public static class AppPaths
                 MigrateLegacyLocations();
             }
         }
-        catch
-        {
-            // Migración no bloqueante
-        }
+        catch { }
     }
 
     /// <summary>
-    /// Migra de forma no destructiva ficheros existentes en %AppData%/FileFlowStudio/ o en la raíz de %AppData%/FileFlow/.
+    /// Migra de forma no destructiva ficheros existentes en ubicaciones heredadas (%AppData%/FileFlow/, %AppData%/FileFlowStudio/, etc.).
     /// </summary>
     private static void MigrateLegacyLocations()
     {
         try
         {
             string baseAppData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string baseLocalAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 
-            // 1. Migración desde la carpeta heredada %AppData%/FileFlowStudio/
-            string legacyDir = Path.Combine(baseAppData, "FileFlowStudio");
-            if (Directory.Exists(legacyDir))
+            // 1. Migración desde %AppData%/FileFlow/ (nombre previo sin 'Studio')
+            string legacyShortDir = Path.Combine(baseAppData, "FileFlow");
+            if (Directory.Exists(legacyShortDir) && !string.Equals(legacyShortDir, RootDirectory, StringComparison.OrdinalIgnoreCase))
             {
-                MigrateFile(Path.Combine(legacyDir, "user_preferences.json"), UserPreferencesFile);
-                MigrateFile(Path.Combine(legacyDir, "external_tools.json"), ExternalToolsFile);
-                MigrateFile(Path.Combine(legacyDir, "media_presets.json"), MediaPresetsFile);
-                MigrateFile(Path.Combine(legacyDir, "crash.log"), CrashLogFile);
+                MigrateFile(Path.Combine(legacyShortDir, "user_preferences.json"), UserPreferencesFile);
+                MigrateFile(Path.Combine(legacyShortDir, "config", "user_preferences.json"), UserPreferencesFile);
+                MigrateFile(Path.Combine(legacyShortDir, "external_tools.json"), ExternalToolsFile);
+                MigrateFile(Path.Combine(legacyShortDir, "config", "external_tools.json"), ExternalToolsFile);
+                MigrateFile(Path.Combine(legacyShortDir, "custom_themes.json"), CustomThemesFile);
+                MigrateFile(Path.Combine(legacyShortDir, "themes", "custom_themes.json"), CustomThemesFile);
+                MigrateFile(Path.Combine(legacyShortDir, "renamer_presets.json"), RenamerPresetsFile);
+                MigrateFile(Path.Combine(legacyShortDir, "presets", "renamer_presets.json"), RenamerPresetsFile);
+                MigrateFile(Path.Combine(legacyShortDir, "media_presets.json"), MediaPresetsFile);
+                MigrateFile(Path.Combine(legacyShortDir, "presets", "media_presets.json"), MediaPresetsFile);
+                MigrateFile(Path.Combine(legacyShortDir, "regex_library.json"), RegexLibraryFile);
+                MigrateFile(Path.Combine(legacyShortDir, "presets", "regex_library.json"), RegexLibraryFile);
+                MigrateFile(Path.Combine(legacyShortDir, "renamer_samples.json"), RenamerSamplesFile);
+                MigrateFile(Path.Combine(legacyShortDir, "samples", "renamer_samples.json"), RenamerSamplesFile);
+                MigrateFile(Path.Combine(legacyShortDir, "crash.log"), CrashLogFile);
+                MigrateFile(Path.Combine(legacyShortDir, "logs", "crash.log"), CrashLogFile);
+
+                // Migrar SyntheticDataSets
+                string legacySets = Path.Combine(legacyShortDir, "SyntheticDataSets");
+                if (Directory.Exists(legacySets))
+                {
+                    MigrateDirectoryContents(legacySets, DataSetsDirectory);
+                }
+
+                // Migrar models
+                string legacyModels = Path.Combine(legacyShortDir, "models");
+                if (Directory.Exists(legacyModels) && !string.Equals(legacyModels, ModelsDirectory, StringComparison.OrdinalIgnoreCase))
+                {
+                    MigrateDirectoryContents(legacyModels, ModelsDirectory);
+                }
+
+                // Migrar scripts
+                string legacyScripts = Path.Combine(legacyShortDir, "scripts");
+                if (Directory.Exists(legacyScripts) && !string.Equals(legacyScripts, ScriptsDirectory, StringComparison.OrdinalIgnoreCase))
+                {
+                    MigrateDirectoryContents(legacyScripts, ScriptsDirectory);
+                }
             }
 
-            // 2. Migración desde la raíz plana de %AppData%/FileFlow/ hacia las nuevas subcarpetas
+            // 2. Migración desde la raíz de RootDirectory hacia las nuevas subcarpetas estructuradas
             MigrateFile(Path.Combine(RootDirectory, "user_preferences.json"), UserPreferencesFile);
             MigrateFile(Path.Combine(RootDirectory, "external_tools.json"), ExternalToolsFile);
             MigrateFile(Path.Combine(RootDirectory, "custom_themes.json"), CustomThemesFile);
@@ -328,24 +442,21 @@ public static class AppPaths
             MigrateFile(Path.Combine(RootDirectory, "renamer_samples.json"), RenamerSamplesFile);
             MigrateFile(Path.Combine(RootDirectory, "crash.log"), CrashLogFile);
 
-            // 3. Migración de scripts desde %AppData%/FileFlow/Scripts/ (PascalCase) a scripts/
-            string oldScriptsDir = Path.Combine(RootDirectory, "Scripts");
-            if (Directory.Exists(oldScriptsDir) && !string.Equals(oldScriptsDir, ScriptsDirectory, StringComparison.OrdinalIgnoreCase))
+            // 3. Migración de SyntheticDataSets en RootDirectory
+            string rootLegacySets = Path.Combine(RootDirectory, "SyntheticDataSets");
+            if (Directory.Exists(rootLegacySets))
             {
-                foreach (var file in Directory.GetFiles(oldScriptsDir, "*.ffscript"))
-                {
-                    string dest = Path.Combine(ScriptsDirectory, Path.GetFileName(file));
-                    if (!File.Exists(dest))
-                    {
-                        File.Copy(file, dest, true);
-                    }
-                }
+                MigrateDirectoryContents(rootLegacySets, DataSetsDirectory);
+            }
+
+            // 4. Migración de checkpoints en LocalAppData heredado
+            string oldCheckpoints = Path.Combine(baseLocalAppData, "FileFlowStudio", "checkpoints");
+            if (Directory.Exists(oldCheckpoints) && !string.Equals(oldCheckpoints, CheckpointsDirectory, StringComparison.OrdinalIgnoreCase))
+            {
+                MigrateDirectoryContents(oldCheckpoints, CheckpointsDirectory);
             }
         }
-        catch
-        {
-            // Migración no bloqueante
-        }
+        catch { }
     }
 
     private static void MigrateFile(string sourcePath, string targetPath)
@@ -361,10 +472,29 @@ public static class AppPaths
                 }
                 File.Copy(sourcePath, targetPath, false);
             }
-            catch
+            catch { }
+        }
+    }
+
+    private static void MigrateDirectoryContents(string sourceDir, string targetDir)
+    {
+        if (!Directory.Exists(sourceDir)) return;
+        try
+        {
+            if (!Directory.Exists(targetDir))
             {
-                // Ignorar fallos de I/O en copia preventiva
+                Directory.CreateDirectory(targetDir);
+            }
+
+            foreach (var file in Directory.GetFiles(sourceDir))
+            {
+                string destFile = Path.Combine(targetDir, Path.GetFileName(file));
+                if (!File.Exists(destFile))
+                {
+                    try { File.Copy(file, destFile, false); } catch { }
+                }
             }
         }
+        catch { }
     }
 }

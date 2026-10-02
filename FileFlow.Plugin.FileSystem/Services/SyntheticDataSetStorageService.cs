@@ -9,7 +9,7 @@ namespace FileFlow.Plugin.FileSystem.Services;
 /// <summary>
 /// Implementación thread-safe del servicio de persistencia y gestión de conjuntos de datos ficticios.
 /// Carga datasets incorporados a partir del banco oficial y gestiona los datasets personalizados
-/// del usuario en la carpeta %AppData%\FileFlow\SyntheticDataSets\.
+/// del usuario en la carpeta centralizada de datasets (AppPaths.DataSetsDirectory).
 /// </summary>
 public sealed class SyntheticDataSetStorageService : ISyntheticDataSetStorageService
 {
@@ -34,9 +34,7 @@ public sealed class SyntheticDataSetStorageService : ISyntheticDataSetStorageSer
 
     public SyntheticDataSetStorageService(string? customStorageDirectory = null)
     {
-        _storageDirectory = customStorageDirectory ?? Path.Combine(
-            FileFlow.Sdk.Storage.AppPaths.RootDirectory,
-            "SyntheticDataSets");
+        _storageDirectory = customStorageDirectory ?? FileFlow.Sdk.Storage.AppPaths.DataSetsDirectory;
     }
 
     public IReadOnlyList<SyntheticDataSet> GetAllDataSets()

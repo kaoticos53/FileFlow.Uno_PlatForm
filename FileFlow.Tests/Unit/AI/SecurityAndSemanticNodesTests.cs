@@ -225,7 +225,7 @@ public class SecurityAndSemanticNodesTests : IDisposable
     [Fact(Skip = "Requires the optional CLIP ONNX model to be installed in the user model directory.")]
     public void SemanticEmbeddingEngine_ClassifyZeroShot_WithClipModel_ShouldScoreEnglishAndSpanishCategories()
     {
-        string clipPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FileFlow", "Models", "clip-vit-base-patch32.onnx");
+        string clipPath = Path.Combine(FileFlow.Sdk.Storage.AppPaths.ModelsDirectory, "clip-vit-base-patch32.onnx");
 
         string imgPath = Path.Combine(_tempDir, "test.png");
         using (var img = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgb24>(100, 100))

@@ -88,14 +88,14 @@ public static class AiModelCatalog
             catch
             {
                 // Fallback de ultra-resistencia a AppData estándar o Temp
-                string fallback = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FileFlow", "models");
+                string fallback = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), FileFlow.Sdk.Storage.AppPaths.AppName, "models");
                 try
                 {
                     if (!Directory.Exists(fallback)) Directory.CreateDirectory(fallback);
                     return fallback;
                 }
                 catch { }
-                return Path.Combine(Path.GetTempPath(), "FileFlow", "models");
+                return Path.Combine(Path.GetTempPath(), FileFlow.Sdk.Storage.AppPaths.AppName, "models");
             }
         }
     }

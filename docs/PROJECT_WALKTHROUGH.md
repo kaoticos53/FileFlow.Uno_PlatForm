@@ -22,6 +22,45 @@
 
 ## Ventana viva
 
+## [2026-10-02] - Hito 316: Modernización y Unificación Centralizada del Almacenamiento de Datos de la Aplicación (`AppPaths`)
+
+### 🎯 El encargo
+«veo que los directorios donde la aplicacion guarda datos y los ajustes estan un poco dispersos. analiza donde se guardan actualmente los datos y propon un plan para unificarllo todo sigueindo loos patrones de las palicaciones modernas. procede»
+
+### 🔬 El diagnóstico
+1. **Dispersión de rutas y marcas dispares**: El almacenamiento usaba rutas hardcodeadas en diferentes componentes: `WorkflowCheckpointManager` escribía en `%LocalAppData%\FileFlowStudio\checkpoints\`, `SyntheticDataSetStorageService` en `%AppData%\FileFlow\SyntheticDataSets\`, `AppPaths` usaba `%AppData%\FileFlow\`, y `AiModelCatalog` tenía fallbacks dispersos.
+2. **Mezcla de datos Roaming vs Local**: En entornos Windows corporativos y perfiles itinerantes (Roaming), colocar gigabytes de modelos de IA ONNX y checkpoints de ejecuciones intermedias en `Roaming AppData` satura el sincronizador de perfiles de red.
+3. **Plataformas no Windows**: Faltaba alineamiento riguroso con los estándares modernos de cada SO:
+   - **Linux**: Especificación XDG Base Directory (`XDG_CONFIG_HOME` para configuración/presets, `XDG_DATA_HOME` para modelos/datos locales, `XDG_CACHE_HOME` para logs/checkpoints).
+   - **macOS**: `~/Library/Application Support/FileFlowStudio/` y `~/Library/Caches/FileFlowStudio/`.
+   - **Windows**: Separación limpia entre `%AppData%\FileFlowStudio\` (Config, Presets, Datasets, Scripts, Themes) y `%LocalAppData%\FileFlowStudio\` (Models, Checkpoints, Plugins, Logs).
+4. **Modo Portable**: Necesitaba encapsulación hermética total: en modo portable (`portable.dat` o `FILEFLOW_PORTABLE=1`), todas las rutas convergen en `AppBaseDir/data/` con salida en `data/output/` y temporales en `data/temp/`, sin tocar registro ni carpetas del sistema.
+
+### 🧱 Las piezas
+- **`FileFlow.Sdk/Storage/AppPaths.cs`**:
+  - Homogeneizada la marca base a `FileFlowStudio` en todos los sistemas operativos.
+  - Añadidas las propiedades de primer nivel: `LocalDataDirectory`, `CheckpointsDirectory`, `DataSetsDirectory`, `DataSetsFile`.
+  - Soporte completo para XDG en Linux (`XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME`), macOS Library y Windows Roaming vs LocalAppData.
+  - Implementada migración automática no destructiva `MigrateLegacyLocations()` en `EnsureDirectories()`: traslada sin pérdida de datos los archivos heredados desde `%AppData%\FileFlow\` y directorios antiguos a la nueva jerarquía estructurada.
+- **`FileFlow.Core/Engine/WorkflowCheckpointManager.cs`**:
+  - Reemplazada la ruta hardcodeada de checkpoints por la delegación canónica en `AppPaths.CheckpointsDirectory`.
+- **`FileFlow.Plugin.FileSystem/Services/SyntheticDataSetStorageService.cs`**:
+  - Actualizado el almacenamiento de datasets de pruebas sintéticos a `AppPaths.DataSetsDirectory`.
+- **`FileFlow.Plugin.AI/Management/AiModelCatalog.cs`**:
+  - Actualizado el fallback de resiliencia extrema para usar `AppPaths.ModelsDirectory` y la constante `AppPaths.AppName`.
+- **`FileFlow.Tests/Unit/Sdk/AppPathsTests.cs`**:
+  - Cobertura de pruebas unitarias actualizada y ampliada para validar la jerarquía completa de rutas, el modo portable y la redirección en tiempo de ejecución.
+
+### 📊 Verificación y Métricas
+- `dotnet test`: 1.770 pruebas unitarias e integradas superadas al 100% (0 fallos, 1 omitida).
+- `AppPathsTests`: 4/4 pruebas superadas.
+- Sondas de autorrevisión del host Uno en runtime:
+  - `.\run.ps1 -SelfCheck`: Verificado (83 comprobaciones de lienzo y paneles OK).
+  - `.\run-uno-fast.ps1 -SelfCheckSettings`: Verificado (detecta `C:\Users\kaoti\AppData\Local\FileFlowStudio\models` con 24 modelos y almacena preferencias OK).
+  - `.\run-uno-fast.ps1 -SelfCheckControlBar`: Verificado (cajón, diseñador de datasets, VFS y ejecuciones OK).
+
+---
+
 ## [2026-10-02] - Hito 315: Eliminación Total de Referencias Residuales al Binario `FileFlow.App.Uno` y Corrección de CI/CD
 
 ### 🎯 El encargo
