@@ -304,8 +304,16 @@ public sealed partial class MainWindow : Window
             // el reparto de la versión anterior (cajón 180–480, ficha 220–750) más el mínimo del lienzo.
             AttachPanelSplitters();
 
-            var mainVm = services.GetRequiredService<MainViewModel>();            Canvas.Editor = mainVm.Editor;
-            TryLoadSampleFlow(mainVm.Editor);
+            var mainVm = services.GetRequiredService<MainViewModel>();
+            Canvas.Editor = mainVm.Editor;
+
+            // En ejecución normal, la aplicación arranca con un lienzo limpio en estado de nuevo flujo.
+            // Solo en modos de autorrevisión/sondeo (--selfcheck*) se carga el flujo de ejemplo para medir el lienzo y paneles.
+            bool isSelfCheck = Environment.GetCommandLineArgs().Any(a => a.StartsWith("--selfcheck", StringComparison.Ordinal));
+            if (isSelfCheck)
+            {
+                TryLoadSampleFlow(mainVm.Editor);
+            }
 
             // Rebanada 4: los dos paneles del editor, consumiendo los VM del núcleo (los mismos que
             // la versión anterior): el cajón añade nodos al MISMO editor que pinta el lienzo, el inspector

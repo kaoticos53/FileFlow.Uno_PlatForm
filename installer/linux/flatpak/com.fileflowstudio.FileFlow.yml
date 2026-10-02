@@ -34,8 +34,8 @@ modules:
       - cp -r payload/* /app/lib/fileflow/
       
       # Creación de lanzador en /app/bin
-      - ln -sf /app/lib/fileflow/FileFlow.App.Uno /app/bin/fileflow
-      - chmod +x /app/bin/fileflow /app/lib/fileflow/FileFlow.App.Uno
+      - if [ -f /app/lib/fileflow/FileFlow.App ]; then ln -sf /app/lib/fileflow/FileFlow.App /app/bin/fileflow && chmod +x /app/lib/fileflow/FileFlow.App; else ln -sf /app/lib/fileflow/FileFlow.App.Uno /app/bin/fileflow && chmod +x /app/lib/fileflow/FileFlow.App.Uno; fi
+      - chmod +x /app/bin/fileflow
       
       # Instalación de metadatos de escritorio, icono y metainfo AppStream
       - install -Dm644 com.fileflowstudio.FileFlow.desktop /app/share/applications/com.fileflowstudio.FileFlow.desktop

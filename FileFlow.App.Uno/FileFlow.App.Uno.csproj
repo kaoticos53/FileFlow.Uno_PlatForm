@@ -7,6 +7,7 @@
     <FileFlowTarget Condition="'$(FileFlowTarget)' == '' and '$(OS)' == 'Windows_NT'">windows</FileFlowTarget>
     <FileFlowTarget Condition="'$(FileFlowTarget)' == ''">desktop</FileFlowTarget>
 
+    <AssemblyName>FileFlow.App</AssemblyName>
     <UnoSingleProject>true</UnoSingleProject>
     <LangVersion>14</LangVersion>
     <Nullable>enable</Nullable>
@@ -78,7 +79,8 @@
 
   <Target Name="CopyPlugins" AfterTargets="Build;Publish">
     <PropertyGroup>
-      <PluginsTargetFolder>$(TargetDir)Plugins\</PluginsTargetFolder>
+      <PluginsTargetFolder Condition="'$(PublishDir)' != ''">$(PublishDir)Plugins\</PluginsTargetFolder>
+      <PluginsTargetFolder Condition="'$(PluginsTargetFolder)' == ''">$(TargetDir)Plugins\</PluginsTargetFolder>
     </PropertyGroup>
     <MakeDir Directories="$(PluginsTargetFolder)" />
     <ItemGroup>
@@ -86,7 +88,8 @@
       <PluginFiles Include="..\FileFlow.Plugin.*\bin\$(Configuration)\net10.0\FileFlow.Plugin.*.dll" />
     </ItemGroup>
     <!-- Junto al exe: PluginRegistryHelper.RegisterBuiltInAssemblies los JIT-carga por nombre desde la base de la app. -->
-    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="false" />
+    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(TargetDir)" Condition="'$(TargetDir)' != '' and Exists('$(TargetDir)')" SkipUnchangedFiles="false" />
+    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(PublishDir)" Condition="'$(PublishDir)' != '' and Exists('$(PublishDir)')" SkipUnchangedFiles="false" />
     <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(PluginsTargetFolder)" SkipUnchangedFiles="false" />
   </Target>
 </Project>

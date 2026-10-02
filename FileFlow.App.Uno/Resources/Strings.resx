@@ -571,5 +571,10 @@
 <data name="Node_Param_OpenPasswordManager" xml:space="preserve"><value>Manage password list (Import / Export / Edit)</value></data>
   <!-- El CABLE del lienzo: su menú, con la misma orden del núcleo que cumple el del escritorio -->
   <data name="Uno_Connection_Delete" xml:space="preserve"><value>Delete Connection</value></data>
-
+  <data name="Param_Placeholder_DefaultPrefix" xml:space="preserve"><value>Default: </value></data>
+  <data name="Param_Placeholder_QuarantineDefault" xml:space="preserve"><value>Default: System quarantine folder</value></data>
+  <data name="Param_Placeholder_TrashDefault" xml:space="preserve"><value>Default: System recycle bin</value></data>
+  <data name="Param_Placeholder_IntermediateDefault" xml:space="preserve"><value>Default: Isolated temp folder {TempDir}/intermediate</value></data>
+  <data name="Param_Placeholder_FolderDefault" xml:space="preserve"><value>Default: {GlobalOutputDir}</value></data>
+  <data name="Param_Placeholder_FileDefault" xml:space="preserve"><value>File path...</value></data>
 </root>

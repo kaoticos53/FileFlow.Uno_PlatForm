@@ -22,6 +22,88 @@
 
 ## Ventana viva
 
+## [2026-10-02] - Hito 314: Unificación Canónica del Ejecutable Principal (`FileFlow.App.exe` / `FileFlow.App`)
+
+### 🎯 El encargo
+«he visto que en el instalador de windows por lo menos, no se en el resto, se referencia al ejecutafle FileFlow.App.exe y se esta generando FileFlow.App.Uno.exe por lo que los accesos directos y algunas cosas mas no funcinan bien.»
+
+### 🔬 El diagnóstico
+1. Al estructurar el proyecto host como `FileFlow.App.Uno.csproj`, MSBuild asignaba por defecto el nombre de ensamblado `FileFlow.App.Uno.dll` y el binario `FileFlow.App.Uno.exe`.
+2. El instalador de Windows Inno Setup (`installer/FileFlow.iss`), los scripts de empaquetado Linux (`AppRun`, `install.sh`, `fileflow.desktop`), el sistema de actualizaciones automáticas (`AppUpdateService.cs`) y la sintaxis de ayuda de línea de comandos referenciaban `FileFlow.App.exe` / `FileFlow.App`.
+3. Esto provocaba que tras la instalación en Windows, los accesos directos del escritorio y del menú inicio apuntaran a una ruta inexistente.
+
+### 🧱 Las piezas
+- **`FileFlow.App.Uno/FileFlow.App.Uno.csproj`**:
+  - Declarado `<AssemblyName>FileFlow.App</AssemblyName>` para generar de forma universal `FileFlow.App.exe` (Windows) y `FileFlow.App` (Linux/macOS).
+  - Adaptado el target `CopyPlugins` para dar soporte nativo a `$(PublishDir)` durante `dotnet publish`.
+- **Scripts de Ejecución y Pruebas (`run-uno.ps1`, `run-uno-fast.ps1`, `run.bat`, `run-fast.bat`)**:
+  - Actualizados para buscar preferentemente `FileFlow.App.exe` con fallback retrocompatible a `FileFlow.App.Uno.exe`.
+- **Scripts de Empaquetado (`installer/publish.ps1`, `installer/linux/flatpak/`)**:
+  - Asegurada la copia infalible de la carpeta `Plugins/` hacia la raíz de publicación `publish/win-x64/`.
+  - Actualizados los manifiestos de Flatpak y scripts asociados para enlazar con `FileFlow.App`.
+
+### 📊 Verificación y Métricas
+- `dotnet build`: Exitoso, generando `FileFlow.App.exe` (300.5 KB) y `FileFlow.App.dll` (793.6 KB).
+- `dotnet test`: 1.770 pruebas superadas, 0 fallos, 1 omitido (100% verde).
+- `.\run-fast.ps1 -SelfCheck`: Verificado exitosamente con código de salida 0.
+- `.\installer\publish.ps1`: Generada la distribución completa en `installer/publish/win-x64` con `FileFlow.App.exe`, plugins y manuales PDF.
+
+---
+
+## [2026-10-02] - Hito 313: Inicio de Aplicación en Estado Limpio de Nuevo Flujo
+
+### 🎯 El encargo
+«al abrir la aplicacion no deberia aparecer ningun flujo. deberia aparecer en el estado de nuevo flujo.»
+
+### 🔬 El diagnóstico
+Al inicializar `MainWindow` en `FileFlow.App.Uno`, se invocaba incondicionalmente `TryLoadSampleFlow(mainVm.Editor)`, un mecanismo de prueba de las primeras fases que cargaba el primer archivo `.json` de `docs/examples` o `Examples/`. Como resultado, al arrancar la app siempre aparecía un grafo precargado en lugar de un lienzo limpio listo para trabajar.
+
+### 🧱 Las piezas
+- **`FileFlow.App.Uno/MainWindow.xaml.cs`**:
+  - Condicionada la ejecución de `TryLoadSampleFlow` exclusivamente a los modos de autorrevisión/sondeo en runtime (`isSelfCheck`, argumentos `--selfcheck*`).
+  - En la ejecución normal del usuario, la aplicación arranca con `EditorViewModel` en su estado natural de nuevo flujo (0 nodos, 0 conexiones, historial limpio).
+
+### 📊 Verificación y Métricas
+- `dotnet test`: 1.770 pruebas superadas (100% verde).
+- `.\run-fast.ps1 -SelfCheck`: Verificado exitosamente (código 0).
+- `.\run-fast.ps1 -SelfCheckControlBar`: Verificado exitosamente (código 0).
+
+---
+
+## [2026-10-02] - Hito 312: Placeholders Inteligentes, Descriptivos y Localizados para Parámetros en UI
+
+### 🎯 El encargo
+«implementa los placeholders» (en respuesta al análisis sobre la falta de valores/placeholders visibles por defecto en campos de directorios y parámetros cuando se dejan vacíos).
+
+### 🔬 El diagnóstico
+1. En el diseño de FileFlow, los parámetros de directorio tienen dos comportamientos en tiempo de ejecución:
+   - Los nodos de exportación final (`PdfSplitNode`, `ExcelReportGeneratorNode`, etc.) tienen por defecto `"{GlobalOutputDir}"`.
+   - Los nodos de transformación intermedia (`ImageOptimizerNode`, `SmartUnpackNode`, etc.) tienen `DefaultValue = ""` en su descriptor para delegar a `ParameterHelper.ResolveIntermediateOutputDir` la creación de carpetas temporales aisladas (`{TempDir}/intermediate/<guid>`).
+2. Sin embargo, en la interfaz gráfica (`FileFlow.App.Uno`), las cajas de texto de los parámetros vacíos se mostraban en blanco sin ninguna marca de agua o placeholder que indicara al usuario cuál es el comportamiento predeterminado implícito.
+
+### 🧱 Las piezas
+- **`FileFlow.App.Core/ViewModels/NodeParameterViewModel.cs`**:
+  - Añadida la propiedad reactiva `Placeholder` con resolución inteligente en 3 niveles:
+    1. Clave de recurso de localización específica `Param_{Key}_Placeholder`.
+    2. Prefijo localizado `Param_Placeholder_DefaultPrefix` ("Por defecto: ") + `Descriptor.DefaultValue` si está declarado.
+    3. Fallbacks contextuales según la semántica del parámetro (`IsFolderPath`: cuarentena, papelera, temporal aislado `{TempDir}/intermediate`, salida global `{GlobalOutputDir}`; `IsFilePath`: `"Ruta de archivo..."`).
+  - Notificación de cambio de `Placeholder` en caliente ante eventos de cambio de idioma (`_languageChangedHandler`).
+- **`FileFlow.App.Uno/Controls/NodeInspectorPanel.xaml.cs`**:
+  - Integrada la sincronización de `PlaceholderText` en `WireBoxToParameter` para que todas las cajas de texto (rutas con botón explorar, multilínea y estándar/número) muestren y actualicen el placeholder en tiempo real.
+- **Recursos de localización multilingüe (`Strings.resx` y `Strings.es.resx`)**:
+  - Añadidas las claves `Param_Placeholder_DefaultPrefix`, `Param_Placeholder_QuarantineDefault`, `Param_Placeholder_TrashDefault`, `Param_Placeholder_IntermediateDefault`, `Param_Placeholder_FolderDefault` y `Param_Placeholder_FileDefault` en `FileFlow.App.Core` y `FileFlow.App.Uno`.
+- **`FileFlow.Tests/Unit/ViewModels/NodeParameterViewModelTests.cs`**:
+  - Añadidas 3 nuevas pruebas unitarias para validar:
+    1. Reflejo del valor por defecto del descriptor en el placeholder.
+    2. Fallback inteligente a carpeta temporal aislada cuando el descriptor es vacío.
+    3. Cambio reactivo del placeholder ante cambios de cultura (`es-ES` ↔ `en-US`).
+
+### 📊 Verificación y Métricas
+- `dotnet test`: 1.770 pruebas superadas (100% verde, 0 fallidas, 1 omitida).
+- `.\run-fast.ps1 -SelfCheck`: Verificado exitosamente con código de salida 0.
+
+---
+
 ## [2026-10-02] - Hito 311: Corrección de Compilación y Empaquetado Flatpak en GitHub Actions Release
 
 ### 🎯 El encargo

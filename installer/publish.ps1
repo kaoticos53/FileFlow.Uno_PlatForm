@@ -72,8 +72,14 @@ if ($LASTEXITCODE -ne 0) {
 	throw "dotnet publish falló con código de salida $LASTEXITCODE"
 }
 
-if (-not (Test-Path (Join-Path $publishRoot "Plugins"))) {
-	Write-Warning "No se encontró la carpeta 'Plugins' en el publish. Verifica el target CopyPlugins en FileFlow.App.Uno.csproj."
+$pluginsDest = Join-Path $publishRoot "Plugins"
+if (-not (Test-Path $pluginsDest)) {
+	New-Item -ItemType Directory -Path $pluginsDest -Force | Out-Null
+	$builtPlugins = Get-ChildItem -Path (Join-Path $repoRoot "FileFlow.Plugin.*\bin\$Configuration\net10.0\FileFlow.Plugin.*.dll")
+	if ($builtPlugins) {
+		Write-Host "==> Copiando ensamblados de plugins a: $pluginsDest" -ForegroundColor Cyan
+		Copy-Item -Path $builtPlugins.FullName -Destination $pluginsDest -Force
+	}
 }
 
 # Copiar ejemplos de flujos

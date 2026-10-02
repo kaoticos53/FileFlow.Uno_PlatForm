@@ -1290,4 +1290,10 @@
   <data name="Metrics_ColBytes" xml:space="preserve"><value>Datos</value></data>
   <data name="Metrics_ColTimePercent" xml:space="preserve"><value>% Tiempo</value></data>
   <data name="Metrics_ColStatus" xml:space="preserve"><value>Estado</value></data>
+  <data name="Param_Placeholder_DefaultPrefix" xml:space="preserve"><value>Por defecto: </value></data>
+  <data name="Param_Placeholder_QuarantineDefault" xml:space="preserve"><value>Por defecto: Carpeta de cuarentena del sistema</value></data>
+  <data name="Param_Placeholder_TrashDefault" xml:space="preserve"><value>Por defecto: Papelera del sistema</value></data>
+  <data name="Param_Placeholder_IntermediateDefault" xml:space="preserve"><value>Por defecto: Carpeta temporal aislada {TempDir}/intermediate</value></data>
+  <data name="Param_Placeholder_FolderDefault" xml:space="preserve"><value>Por defecto: {GlobalOutputDir}</value></data>
+  <data name="Param_Placeholder_FileDefault" xml:space="preserve"><value>Ruta de archivo...</value></data>
 </root>

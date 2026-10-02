@@ -62,6 +62,56 @@ public partial class NodeParameterViewModel : ObservableObject, IDisposable
     /// </summary>
     public string Help => _loc.GetString($"Param_{Key}_Help", Key);
 
+    /// <summary>
+    /// Texto de sugerencia o valor por defecto implícito cuando el campo está vacío.
+    /// Resuelve claves de localización específicas, prefijos por defecto del descriptor o fallbacks
+    /// descriptivos para carpetas y archivos.
+    /// </summary>
+    public string Placeholder
+    {
+        get
+        {
+            string specific = _loc.GetString($"Param_{Key}_Placeholder", string.Empty);
+            if (!string.IsNullOrWhiteSpace(specific) && !string.Equals(specific, $"Param_{Key}_Placeholder", StringComparison.Ordinal))
+            {
+                return specific;
+            }
+
+            if (Descriptor?.DefaultValue != null && !string.IsNullOrWhiteSpace(Descriptor.DefaultValue.ToString()))
+            {
+                string prefix = _loc.GetString("Param_Placeholder_DefaultPrefix", "Por defecto: ");
+                return $"{prefix}{Descriptor.DefaultValue}";
+            }
+
+            if (IsFolderPath)
+            {
+                if (Key.Contains("Quarantine", StringComparison.OrdinalIgnoreCase))
+                {
+                    return _loc.GetString("Param_Placeholder_QuarantineDefault", "Por defecto: Carpeta de cuarentena del sistema");
+                }
+                if (Key.Contains("Trash", StringComparison.OrdinalIgnoreCase))
+                {
+                    return _loc.GetString("Param_Placeholder_TrashDefault", "Por defecto: Papelera del sistema");
+                }
+                if (Key.Contains("Output", StringComparison.OrdinalIgnoreCase) ||
+                    Key.Contains("Destination", StringComparison.OrdinalIgnoreCase) ||
+                    Key.Contains("Target", StringComparison.OrdinalIgnoreCase))
+                {
+                    return _loc.GetString("Param_Placeholder_IntermediateDefault", "Por defecto: Carpeta temporal aislada {TempDir}/intermediate");
+                }
+
+                return _loc.GetString("Param_Placeholder_FolderDefault", "Por defecto: {GlobalOutputDir}");
+            }
+
+            if (IsFilePath)
+            {
+                return _loc.GetString("Param_Placeholder_FileDefault", "Ruta de archivo...");
+            }
+
+            return string.Empty;
+        }
+    }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBooleanAndNoOptions))]
     [NotifyPropertyChangedFor(nameof(IsFolderPath))]
@@ -783,6 +833,7 @@ public partial class NodeParameterViewModel : ObservableObject, IDisposable
         {
             OnPropertyChanged(nameof(DisplayName));
             OnPropertyChanged(nameof(Help));
+            OnPropertyChanged(nameof(Placeholder));
         };
         _loc.LanguageChanged += _languageChangedHandler;
     }

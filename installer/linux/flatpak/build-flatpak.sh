@@ -26,7 +26,7 @@ OUTPUT_FILE_NAME="$(basename "${OUTPUT_FILE}")"
 OUTPUT_FILE="${OUTPUT_DIR}/${OUTPUT_FILE_NAME}"
 
 # 1. Preparar payload de binarios
-if [ -n "${SOURCE_PAYLOAD}" ] && [ -d "${SOURCE_PAYLOAD}" ] && [ -f "${SOURCE_PAYLOAD}/FileFlow.App.Uno" ]; then
+if [ -n "${SOURCE_PAYLOAD}" ] && [ -d "${SOURCE_PAYLOAD}" ] && ( [ -f "${SOURCE_PAYLOAD}/FileFlow.App" ] || [ -f "${SOURCE_PAYLOAD}/FileFlow.App.Uno" ] ); then
     echo -e "\n\033[0;33m[1/3] Utilizando payload pre-publicado desde: ${SOURCE_PAYLOAD}...\033[0m"
     cp -r "${SOURCE_PAYLOAD}/"* "${STAGE_DIR}/payload/"
 else

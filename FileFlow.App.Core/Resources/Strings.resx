@@ -1290,4 +1290,10 @@
   <data name="Metrics_ColBytes" xml:space="preserve"><value>Data</value></data>
   <data name="Metrics_ColTimePercent" xml:space="preserve"><value>% Time</value></data>
   <data name="Metrics_ColStatus" xml:space="preserve"><value>Status</value></data>
+  <data name="Param_Placeholder_DefaultPrefix" xml:space="preserve"><value>Default: </value></data>
+  <data name="Param_Placeholder_QuarantineDefault" xml:space="preserve"><value>Default: System quarantine folder</value></data>
+  <data name="Param_Placeholder_TrashDefault" xml:space="preserve"><value>Default: System recycle bin</value></data>
+  <data name="Param_Placeholder_IntermediateDefault" xml:space="preserve"><value>Default: Isolated temp folder {TempDir}/intermediate</value></data>
+  <data name="Param_Placeholder_FolderDefault" xml:space="preserve"><value>Default: {GlobalOutputDir}</value></data>
+  <data name="Param_Placeholder_FileDefault" xml:space="preserve"><value>File path...</value></data>
 </root>

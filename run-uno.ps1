@@ -77,11 +77,20 @@ if (-not $NoBuild) {
     Write-Host "`n[Modo Rapido] Omitiendo compilacion (-NoBuild)..." -ForegroundColor Yellow
 }
 
-$exePath = Join-Path $projectDir "bin\$Configuration\net10.0-windows10.0.19041.0\FileFlow.App.Uno.exe"
+$exePath = Join-Path $projectDir "bin\$Configuration\net10.0-windows10.0.19041.0\FileFlow.App.exe"
+if (-not (Test-Path $exePath)) {
+    $exePathUno = Join-Path $projectDir "bin\$Configuration\net10.0-windows10.0.19041.0\FileFlow.App.Uno.exe"
+    if (Test-Path $exePathUno) {
+        $exePath = $exePathUno
+    }
+}
 
 if (-not (Test-Path $exePath)) {
     $fallbackConfig = if ($Configuration -eq "Debug") { "Release" } else { "Debug" }
-    $fallbackPath = Join-Path $projectDir "bin\$fallbackConfig\net10.0-windows10.0.19041.0\FileFlow.App.Uno.exe"
+    $fallbackPath = Join-Path $projectDir "bin\$fallbackConfig\net10.0-windows10.0.19041.0\FileFlow.App.exe"
+    if (-not (Test-Path $fallbackPath)) {
+        $fallbackPath = Join-Path $projectDir "bin\$fallbackConfig\net10.0-windows10.0.19041.0\FileFlow.App.Uno.exe"
+    }
     if (Test-Path $fallbackPath) {
         $exePath = $fallbackPath
         $Configuration = $fallbackConfig

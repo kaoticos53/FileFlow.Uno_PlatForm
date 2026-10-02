@@ -13,6 +13,42 @@ Este documento se actualiza al finalizar cada sesión de trabajo para consolidar
 
 ## 0. Hito más reciente
 
+- **314. Unificación Canónica del Ejecutable Principal (`FileFlow.App.exe` / `FileFlow.App`) (2026-10-02)**:
+  - **El encargo**: «he visto que en el instalador de windows por lo menos, no se en el resto, se referencia al ejecutafle FileFlow.App.exe y se esta generando FileFlow.App.Uno.exe por lo que los accesos directos y algunas cosas mas no funcinan bien.»
+  - **🔬 Diagnóstico**: `FileFlow.App.Uno.csproj` generaba por defecto `FileFlow.App.Uno.exe`, mientras que Inno Setup (`installer/FileFlow.iss`), instaladores de Linux (`AppRun`, `install.sh`, `fileflow.desktop`), Flatpak y el servicio de actualización esperaban `FileFlow.App.exe` / `FileFlow.App`.
+  - **🧱 Acciones**:
+    - `FileFlow.App.Uno/FileFlow.App.Uno.csproj`: añadido `<AssemblyName>FileFlow.App</AssemblyName>` y adaptado `CopyPlugins` para `$(PublishDir)`.
+    - `installer/publish.ps1`: garantizada la presencia de la carpeta `Plugins/` en `publish/win-x64/`.
+    - `run-uno.ps1`, `run-uno-fast.ps1`, `run.bat`, `run-fast.bat`: soporte preferente para `FileFlow.App.exe` con fallback retrocompatible.
+    - Manifiesto Flatpak (`com.fileflowstudio.FileFlow.yml`) y `build-flatpak.sh`: apuntando al binario estándar `FileFlow.App`.
+  - **📊 Validación**:
+    - `dotnet build`: Exitoso, generando `FileFlow.App.exe`.
+    - `dotnet test`: **1.770 pruebas superadas al 100%**.
+    - `.\run-fast.ps1 -SelfCheck`: **Código de salida 0**.
+    - `.\installer\publish.ps1`: Publicación limpia en `installer/publish/win-x64/FileFlow.App.exe`.
+
+- **313. Inicio de Aplicación en Estado Limpio de Nuevo Flujo (2026-10-02)**:
+  - **El encargo**: «al abrir la aplicacion no deberia aparecer ningun flujo. deberia aparecer en el estado de nuevo flujo.»
+  - **🔬 Diagnóstico**: En `MainWindow.xaml.cs`, el método `TryLoadSampleFlow` se ejecutaba incondicionalmente al arrancar, cargando un flujo de ejemplo de `docs/examples`.
+  - **🧱 Acciones**:
+    - `FileFlow.App.Uno/MainWindow.xaml.cs`: condicionada la carga de ejemplos exclusivamente a los modos de sondeo (`isSelfCheck`, `--selfcheck*`). En ejecución normal, la app arranca con el lienzo limpio (0 nodos, 0 conexiones).
+  - **📊 Validación**:
+    - `dotnet test`: **1.770 pruebas superadas al 100%**.
+    - `.\run-fast.ps1 -SelfCheck`: **Código de salida 0**.
+    - `.\run-fast.ps1 -SelfCheckControlBar`: **Código de salida 0**.
+
+- **312. Placeholders Inteligentes, Descriptivos y Localizados en Parámetros de Nodo (2026-10-02)**:
+  - **El encargo**: «implementa los placeholders»
+  - **🔬 Diagnóstico**: En los nodos con parámetros de carpetas/archivos (`OutputDirectory`, `DestinationFolder`, `QuarantinePath`), cuando el campo está vacío, la UI se mostraba en blanco sin indicar el comportamiento por defecto implícito (ej. `{GlobalOutputDir}`, temporal aislado `{TempDir}/intermediate`, cuarentena o papelera).
+  - **🧱 Acciones**:
+    - `FileFlow.App.Core/ViewModels/NodeParameterViewModel.cs`: implementada propiedad `Placeholder` con resolución en 3 niveles (clave específica `Param_{Key}_Placeholder`, prefijo + descriptor `DefaultValue`, o fallback contextual según tipo de carpeta/archivo) y notificación reactiva en cambios de idioma.
+    - `FileFlow.App.Uno/Controls/NodeInspectorPanel.xaml.cs`: cableado de `PlaceholderText` en `WireBoxToParameter` para sincronización bidireccional y reactiva en todas las cajas de texto (rutas, multilínea y estándar).
+    - Recursos de localización (`Strings.resx` y `Strings.es.resx` en `App.Core` y `App.Uno`): añadidas claves `Param_Placeholder_DefaultPrefix`, `Param_Placeholder_QuarantineDefault`, `Param_Placeholder_TrashDefault`, `Param_Placeholder_IntermediateDefault`, `Param_Placeholder_FolderDefault` y `Param_Placeholder_FileDefault`.
+    - `FileFlow.Tests/Unit/ViewModels/NodeParameterViewModelTests.cs`: 3 nuevas pruebas unitarias cubriendo reflejo de descriptores, fallbacks inteligentes y reactividad i18n.
+  - **📊 Validación**:
+    - `dotnet test`: **1.770 pruebas superadas al 100% (0 fallos, 1 omitida)**.
+    - `.\run-fast.ps1 -SelfCheck`: **Código de salida 0**.
+
 - **311. Corrección de Compilación y Empaquetado Flatpak en Release (2026-10-02)**:
   - **El encargo**: «en github actions release falla y de error en el paso compilar y empaquetar bundle flatpak.»
   - **🔬 Diagnóstico**: En `release.yml`, `flatpak-builder` intentaba ejecutar `dotnet publish` dentro del contenedor sandbox de Flatpak sin acceso a la red ni a NuGet, provocando el fallo `error MSB4236: The SDK 'Uno.Sdk/6.7.30' specified could not be found`.

@@ -261,6 +261,45 @@ public class NodeParameterViewModelTests : IDisposable
         clock.PendingTimerCount.Should().Be(0, "sin confirmación no hay nada que venza después");
     }
 
+    [Fact]
+    public void Placeholder_ShouldReflectDescriptorDefaultValue_WhenPresent()
+    {
+        var desc = new NodeParameterDescriptor("OutputDirectory", ParameterEditorType.FolderPath, DefaultValue: "{GlobalOutputDir}");
+        using var param = new NodeParameterViewModel(desc, string.Empty);
+
+        param.Placeholder.Should().Contain("{GlobalOutputDir}");
+    }
+
+    [Fact]
+    public void Placeholder_ShouldProvideSmartFolderFallback_WhenDescriptorDefaultIsEmpty()
+    {
+        var desc = new NodeParameterDescriptor("OutputDirectory", ParameterEditorType.FolderPath, DefaultValue: "");
+        using var param = new NodeParameterViewModel(desc, string.Empty);
+
+        param.Placeholder.Should().Contain("{TempDir}/intermediate");
+    }
+
+    [Fact]
+    public void Placeholder_ShouldUpdateReactively_WhenCultureChanges()
+    {
+        var resourceManager = new ResourceManager("FileFlow.App.Core.Resources.Strings", typeof(FileFlow.App.Core.HostUi).Assembly);
+        LocalizationManager.Instance.RegisterResourceManager(resourceManager);
+
+        var desc = new NodeParameterDescriptor("OutputDirectory", ParameterEditorType.FolderPath, DefaultValue: "");
+        using var param = new NodeParameterViewModel(desc, string.Empty);
+
+        HostUiTestHelper.SetCultureOnUI("es-ES");
+        string phEs = param.Placeholder;
+
+        HostUiTestHelper.SetCultureOnUI("en-US");
+        string phEn = param.Placeholder;
+
+        phEs.Should().Contain("Por defecto");
+        phEn.Should().Contain("Default");
+
+        HostUiTestHelper.SetCultureOnUI("es-ES");
+    }
+
     /// <summary>
     /// Arranca la sesión headless de forma explícita antes de copiar.
     ///

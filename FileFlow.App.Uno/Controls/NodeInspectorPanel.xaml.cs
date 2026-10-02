@@ -930,6 +930,8 @@ public sealed partial class NodeInspectorPanel : UserControl
     /// </summary>
     private void WireBoxToParameter(TextBox box, NodeParameterViewModel p)
     {
+        box.PlaceholderText = p.Placeholder;
+
         box.TextChanged += (_, _) =>
         {
             if (box.Text != (p.Value?.ToString() ?? string.Empty))
@@ -940,6 +942,12 @@ public sealed partial class NodeInspectorPanel : UserControl
 
         void OnParameterChanged(object? _, PropertyChangedEventArgs e)
         {
+            if (e.PropertyName == nameof(NodeParameterViewModel.Placeholder))
+            {
+                box.PlaceholderText = p.Placeholder;
+                return;
+            }
+
             if (e.PropertyName != nameof(NodeParameterViewModel.Value))
             {
                 return;

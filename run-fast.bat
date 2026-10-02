@@ -2,7 +2,8 @@
 REM FileFlow Studio - Host Uno (WinUI 3) Launcher rapido para Windows: no compila.
 setlocal
 set CONFIG=Debug
-set EXE=FileFlow.App.Uno\bin\%CONFIG%\net10.0-windows10.0.19041.0\FileFlow.App.Uno.exe
+set EXE=FileFlow.App.Uno\bin\%CONFIG%\net10.0-windows10.0.19041.0\FileFlow.App.exe
+if not exist "%EXE%" set EXE=FileFlow.App.Uno\bin\%CONFIG%\net10.0-windows10.0.19041.0\FileFlow.App.Uno.exe
 
 echo =========================================
 echo   FileFlow Studio - Host Uno (WinUI 3)

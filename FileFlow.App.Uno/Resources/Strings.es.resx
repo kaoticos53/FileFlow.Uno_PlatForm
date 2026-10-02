@@ -560,5 +560,10 @@
 <data name="Node_Param_OpenPasswordManager" xml:space="preserve"><value>Gestionar lista de contraseñas (Importar / Exportar / Editar)</value></data>
   <!-- El CABLE del lienzo: su menú, con la misma orden del núcleo que cumple el del escritorio -->
   <data name="Uno_Connection_Delete" xml:space="preserve"><value>Eliminar conexión</value></data>
-
+  <data name="Param_Placeholder_DefaultPrefix" xml:space="preserve"><value>Por defecto: </value></data>
+  <data name="Param_Placeholder_QuarantineDefault" xml:space="preserve"><value>Por defecto: Carpeta de cuarentena del sistema</value></data>
+  <data name="Param_Placeholder_TrashDefault" xml:space="preserve"><value>Por defecto: Papelera del sistema</value></data>
+  <data name="Param_Placeholder_IntermediateDefault" xml:space="preserve"><value>Por defecto: Carpeta temporal aislada {TempDir}/intermediate</value></data>
+  <data name="Param_Placeholder_FolderDefault" xml:space="preserve"><value>Por defecto: {GlobalOutputDir}</value></data>
+  <data name="Param_Placeholder_FileDefault" xml:space="preserve"><value>Ruta de archivo...</value></data>
 </root>
