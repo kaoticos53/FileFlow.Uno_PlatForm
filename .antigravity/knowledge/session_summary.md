@@ -13,6 +13,42 @@ Este documento se actualiza al finalizar cada sesión de trabajo para consolidar
 
 ## 0. Hito más reciente
 
+- **308. Renderizado Fluido, Escalado DPI y Tematizado de la Pantalla de Carga (SplashScreen) (2026-10-02)**:
+  - **El encargo**: «ahora sale una ventana de arranque pero solo es un cuadrado negro sin ningun contenido visible. deberia tener el nombre de la aplicacion, version , etc y una barra de carga de modulos o algo asi. deberia seguir el tema de la aplicacion».
+  - **🔬 Diagnóstico**:
+    1. Inanición del hilo de UI en `App.xaml.cs`: el ciclo `OnLaunched` corría 100% síncrono; el HWND de Windows se abría pero el motor de renderizado DirectX/WinUI no recibía tiempo para procesar el layout/arrange y dibujar los fotogramas del árbol XAML antes de que `MainWindow` se activase y cerrase la splash.
+    2. Escalado DPI: `appWindow.Resize(540, 350)` tomaba píxeles físicos. En monitores con escala (125%, 150%, 200%), 540x350 px equivalía a ~360x233 DIPs, recortando y desbordando el contenido de `SplashScreenView`.
+    3. Ventana sin bordes: `SetBorderAndTitleBar(false, false)` requería `ExtendsContentIntoTitleBar = true` para que WinUI 3 extendiera el contenido a toda el área de la ventana.
+    4. Sincronización del tema: `SplashScreenWindow` se instanciaba antes de leer las preferencias del usuario (`UserPreferencesService`) y antes de que `UnoThemeHost.RepublishTokens()` actualizase los colores del tema activo.
+  - **🧱 Acciones**:
+    - `FileFlow.App.Uno/SplashScreenWindow.xaml` y `.xaml.cs`: activado `ExtendsContentIntoTitleBar = true`, cálculo de escala real mediante `GetDpiForWindow(hWnd)` para redimensionar con exactitud a 540x350 DIPs en cualquier monitor y centrado en `displayArea.WorkArea`. Incorporado `ApplyTheme(bool isDark)` y fondo de `RootGrid` conectado a `CanvasSurfaceBrush`.
+    - `FileFlow.App.Uno/Controls/SplashScreenView.xaml` y `.xaml.cs`: `CardBorder` autoajustable con `CornerRadius="16"`, `CanvasSurfaceBrush` y `CanvasBorderBrush`. Rediseñada la insignia de módulos/nodos en cápsula temática con icono vectorial y etiqueta `TxtNodesBadge`. Añadido `ApplyTheme(bool isDark)` que reconfigura `RequestedTheme` y regenera el gradiente *shimmer* con los acentos del tema.
+    - `FileFlow.App.Uno/App.xaml.cs`: pre-carga temprana de preferencias, cultura y tema (`ThemeManager.Instance.SetThemeById` + `UnoThemeHost.RepublishTokens()`) antes de instanciar `SplashScreenWindow`. Implementada la dosificación asíncrona no bloqueante `PaceStartupVisualAsync(isSelfCheck, delayMs)` para permitir al compositor de WinUI 3 procesar `WM_PAINT`, renderizar los fotogramas y animar el avance (15% -> 35% -> 50% -> 85% -> 100%) sin afectar los modos de sondeo (`--selfcheck*`). Preservado el orden estricto de guardias AST.
+    - `FileFlow.Tests/Unit/App/DeferredWorkInventoryGuardTests.cs`: registrado `PaceStartupVisualAsync` como `RealTime` en `Registry`.
+  - **📊 Validación**:
+    - `dotnet build FileFlow.slnx`: **0 errores, 0 advertencias**.
+    - Matriz multiplataforma (`.\build-matrix.ps1`): **Desktop Skia y Web WASM superados con 0 errores**.
+    - Sondeos del host Uno (`.\run-uno-fast.ps1 -SelfCheck`, `-SelfCheckControlBar`, `-SelfCheckSettings`, `-SelfCheckDialogs`): **VERIFICADOS (exit code 0)**.
+    - Guardias (`GuardTests`): **296/296 superadas (100% éxito)**.
+    - Suite completa (`.\test.ps1`): **1.762 superadas, 0 errores**.
+
+- **307. Restauración de la Pantalla de Carga Inicial (SplashScreenWindow y SplashOverlay en Uno) (2026-10-02)**:
+  - **El encargo**: «la ventana incial de carga de la aplicacion no aparece.» Restaurar la pantalla de carga (Splash Screen) omitida tras la purga del host heredado en el Hito 301. Se implementa como ventana nativa flotante independiente (`SplashScreenWindow`) en Windows Desktop, con degradación automática a capa superpuesta (`SplashOverlay`) en Web/WASM y plataformas sin soporte multiventana.
+  - **🔬 Diagnóstico**: En el Hito 301 se eliminó `SplashScreenWindow.axaml`. Al migrar al host Uno (`FileFlow.App.Uno/App.xaml.cs`), se lanzaba directamente `MainWindow` sin feedback visual durante la carga síncrona de 11 plugins y 70 nodos. Las 10 claves multilingües de localización (`Splash_*`) y el enumerado `StartupPhase.Splash` seguían existiendo en `FileFlow.App.Core`.
+  - **🧱 Acciones**:
+    - Creado `FileFlow.App.Uno/Controls/SplashScreenView.xaml` y `.xaml.cs`: control reutilizable de la tarjeta de splash (540x350 px, tokens temáticos, icono de flash vectorizado, versión real, estado del motor DAG, badge de nodos "70 nodos DAG" en cyan/glow, barra con shimmer de gradiente continuo a 40 ms y pie localizado).
+    - Creado `FileFlow.App.Uno/SplashScreenWindow.xaml` y `.xaml.cs`: ventana nativa flotante independiente para Windows Desktop (`AppWindow`/`OverlappedPresenter` sin marco ni título, tamaño fijo 540x350, centrada en pantalla y `CloseWithFadeAsync()`).
+    - Actualizado `FileFlow.App.Uno/MainWindow.xaml` y `.xaml.cs`: integrado `SplashOverlayRoot` con `SplashScreenView` para degradación en WebAssembly/fallback.
+    - Actualizado `FileFlow.App.Uno/App.xaml.cs`: ciclo `OnLaunched` orquestado mostrando progreso real (15% servicios, 35% preferencias, 50% tema, 85% plugins/nodos, 100% listo y fade out). Detección automática de `--selfcheck*` para bypass instantáneo sin retardos.
+    - Creado `FileFlow.Tests/Unit/App/SplashScreenStartupTests.cs` con 7 pruebas de contrato e integridad.
+    - Actualizado `DeferredWorkInventoryGuardTests.cs` registrando los temporizadores y retardos de fade.
+  - **📊 Validación**:
+    - `dotnet build FileFlow.slnx`: **0 errores, 0 advertencias**.
+    - Matriz multiplataforma (`.\build-matrix.ps1`): **Desktop Skia y Web WASM superados con 0 errores**.
+    - Sondeos del host Uno (`.\run-uno-fast.ps1 -SelfCheck`, `-SelfCheckControlBar`, `-SelfCheckSettings`, `-SelfCheckDialogs`): **VERIFICADOS (exit code 0)**.
+    - Pruebas de guardias (`dotnet test --filter GuardTests`): **296/296 superadas (100% éxito)**.
+    - Cobertura de mutaciones (`MutationDeclarationCoverageTests`): **3/3 superadas (100% éxito)**.
+
 - **306. Corrección de Compilación CI/Release por Conflicto de DevServer en Uno.Sdk (2026-10-01)**:
   - **El encargo**: Resolver el error `error UNOB0019: The DevServer package is intended for development builds only and should not be used with optimized/release builds` reportado durante la ejecución del workflow de CI de GitHub Actions.
   - **🔬 Diagnóstico**: En CI, el comando `dotnet restore FileFlow.slnx` restauraba por defecto bajo la configuración `Debug`, provocando que `Uno.Sdk` inyectase el paquete de desarrollo `Uno.WinUI.DevServer` en `project.assets.json`. Al ejecutar después `dotnet build -c Release --no-restore`, las metas de MSBuild de Uno (`Uno.WinUI.DevServer.targets`) abortaban la compilación al detectar dicho paquete en una compilación optimizada.

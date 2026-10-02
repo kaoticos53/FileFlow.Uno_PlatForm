@@ -181,6 +181,35 @@ public sealed partial class MainWindow : Window
     internal void ApplyPendingUpdate(FileFlow.Sdk.Services.AppUpdateInfo info) =>
         _controlBar?.SetPendingUpdate(info);
 
+    internal void ShowSplashOverlay()
+    {
+        SplashOverlayRoot.Opacity = 1.0;
+        SplashOverlayRoot.Visibility = Visibility.Visible;
+        SplashOverlay.StartShimmer();
+    }
+
+    internal void UpdateSplashOverlay(string message, double progress)
+    {
+        SplashOverlay.UpdateStatus(message, progress);
+    }
+
+    internal void SetSplashOverlayNodeCount(int count)
+    {
+        SplashOverlay.SetNodeCount(count);
+    }
+
+    internal async System.Threading.Tasks.Task HideSplashOverlayAsync()
+    {
+        SplashOverlay.StopShimmer();
+        for (double op = 1.0; op > 0.05; op -= 0.15)
+        {
+            SplashOverlayRoot.Opacity = op;
+            await System.Threading.Tasks.Task.Delay(16);
+        }
+
+        SplashOverlayRoot.Visibility = Visibility.Collapsed;
+    }
+
     public MainWindow()
     {
         InitializeComponent();

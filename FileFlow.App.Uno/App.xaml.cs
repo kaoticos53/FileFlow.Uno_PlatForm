@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using FileFlow.App.Core;
@@ -58,7 +58,7 @@ public partial class App : Application
         };
     }
 
-    protected override void OnLaunched(LaunchActivatedEventArgs args)
+    protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
         // Los TEXTOS del host (hito 255): el diccionario propio del host Uno — las claves Uno_* en los dos
         // idiomas — es lo que convierte el fallback incrustado de cada GetString en texto de verdad
@@ -66,6 +66,43 @@ public partial class App : Application
         // argumento), que es exactamente lo que la superficie de ajustes mide.
         LocalizationManager.Instance.RegisterResourceManager(
             new System.Resources.ResourceManager("FileFlow.App.Uno.Resources.Strings", typeof(App).Assembly));
+
+        // Detectar si la ejecución es un sondeo automatizado (los sondeos no esperan a la splash).
+        bool isSelfCheck = Environment.GetCommandLineArgs().Any(a => a.StartsWith("--selfcheck", StringComparison.Ordinal));
+
+        // Pre-cargar idioma y tema guardados para que la pantalla de carga se presente de inmediato
+        // en el idioma y con el tema visual configurados por el usuario.
+        var earlyPrefs = UserPreferencesService.Instance;
+        earlyPrefs.Load();
+        string earlyLang = LanguageCatalog.Resolve(earlyPrefs.Preferences.Language)?.Code ?? LanguageCatalog.All[0].Code;
+        LocalizationManager.Instance.SetCulture(earlyLang);
+
+        string earlyThemeId = ThemeManager.ResolveThemeId(earlyPrefs.Preferences.ActiveTheme) ?? ThemeManager.DefaultThemeId;
+        ThemeManager.Instance.SetThemeById(earlyThemeId);
+        Platform.UnoThemeHost.RepublishTokens();
+
+        // Ventana flotante independiente en Windows Desktop
+        SplashScreenWindow? splashWindow = null;
+#if WINDOWS
+        if (!isSelfCheck)
+        {
+            try
+            {
+                splashWindow = new SplashScreenWindow();
+                splashWindow.ApplyTheme(ThemeManager.Instance.IsCurrentThemeDark);
+                splashWindow.Activate();
+                splashWindow.StartShimmer();
+                splashWindow.UpdateStatus(
+                    LocalizationManager.Instance.GetString("Splash_StatusServices", "Construyendo el contenedor de servicios..."), 15);
+            }
+            catch
+            {
+                splashWindow = null;
+            }
+        }
+#endif
+
+        await PaceStartupVisualAsync(isSelfCheck, 120);
 
         // Puente de temas (fase 3.5): ANTES de aplicar cualquier tema — el ThemeManager del núcleo
         // notifica por ThemeHostBridge y este host responde republicando los tokens Canvas* en
@@ -75,6 +112,11 @@ public partial class App : Application
         var services = new ServiceCollection();
         ConfigureServices(services);
         s_services = services.BuildServiceProvider();
+
+        splashWindow?.UpdateStatus(
+            LocalizationManager.Instance.GetString("Splash_StatusPreferences", "Cargando preferencias..."), 35);
+
+        await PaceStartupVisualAsync(isSelfCheck, 100);
 
         // Bordes del host hacia el núcleo portable: sin estas instalaciones el núcleo cae a sus
         // no-ops seguros (portapapeles descartado, vista previa sin ventana, temas sin publicar).
@@ -111,8 +153,52 @@ public partial class App : Application
         // publicación del tema muta los pinceles y la variante A TRAVÉS de la ventana y sin ella se pierde
         // sin ruido. Crear la ventana primero no la enseña antes de tiempo: se activa después.</para>
         s_mainWindow = new MainWindow();
+        var mainWindow = (MainWindow)s_mainWindow;
+
+        bool useOverlay = (splashWindow is null) && !isSelfCheck;
+        if (useOverlay)
+        {
+            mainWindow.ShowSplashOverlay();
+            mainWindow.UpdateSplashOverlay(
+                LocalizationManager.Instance.GetString("Splash_StatusTheme", "Aplicando el tema guardado..."), 50);
+        }
+
+        splashWindow?.UpdateStatus(
+            LocalizationManager.Instance.GetString("Splash_StatusTheme", "Aplicando el tema guardado..."), 50);
+
         ApplySavedPreferences(s_services);
+
+        var loader = s_services.GetRequiredService<FileFlow.Core.Plugins.PluginLoader>();
+        int nodes = loader.DiscoveredNodesCount;
+        splashWindow?.SetNodeCount(nodes);
+        splashWindow?.UpdateStatus(
+            LocalizationManager.Instance.GetString("Splash_StatusInterface", "Inicializando el lienzo DAG..."), 85);
+
+        if (useOverlay)
+        {
+            mainWindow.SetSplashOverlayNodeCount(nodes);
+            mainWindow.UpdateSplashOverlay(
+                LocalizationManager.Instance.GetString("Splash_StatusInterface", "Inicializando el lienzo DAG..."), 85);
+        }
+
+        await PaceStartupVisualAsync(isSelfCheck, 180);
+
         s_mainWindow.Activate();
+
+        if (splashWindow is not null)
+        {
+            splashWindow.UpdateStatus(
+                LocalizationManager.Instance.GetString("Splash_StatusReady", "¡Listo!"), 100);
+            await PaceStartupVisualAsync(isSelfCheck, 120);
+            _ = splashWindow.CloseWithFadeAsync();
+        }
+        else if (useOverlay)
+        {
+            mainWindow.UpdateSplashOverlay(
+                LocalizationManager.Instance.GetString("Splash_StatusReady", "¡Listo!"), 100);
+            await PaceStartupVisualAsync(isSelfCheck, 120);
+            _ = mainWindow.HideSplashOverlayAsync();
+        }
 
         // Sondeo UIA externo (--selfcheck-uia): la app vive, un hijo externo la observa por UIA
         // con las anclas del 238 y el veredicto llega por su código de salida (hilo de fondo: el
@@ -369,5 +455,20 @@ public partial class App : Application
         // selector de variables). Sin él, los dos comandos del núcleo que los piden caían en el Nulo
         // declarado y el usuario veía un botón que no hacía nada.
         services.AddSingleton<IWindowService, UnoWindowService>();
+    }
+
+    /// <summary>
+    /// Dosifica el avance visual de las fases de la pantalla de carga para que el usuario pueda apreciar
+    /// el progreso de inicialización y el conteo de módulos. En los modos de sondeo (--selfcheck*) se
+    /// salta por completo para preservar la máxima velocidad de ejecución.
+    /// </summary>
+    private static async Task PaceStartupVisualAsync(bool isSelfCheck, int delayMs)
+    {
+        if (isSelfCheck)
+        {
+            return;
+        }
+
+        await Task.Delay(delayMs);
     }
 }

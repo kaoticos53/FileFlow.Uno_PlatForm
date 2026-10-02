@@ -58,6 +58,12 @@ public class DeferredWorkInventoryGuardTests
         // interfaz real detrás (y con una release nueva de verdad). En los modos de sondeo ni se arranca.
         RealTime("FileFlow.App.Uno/App.xaml.cs::StartUpdateCheck::Delay", "espera del arranque del host a que la interfaz esté montada antes de consultar actualizaciones; se salta entera en los modos de sondeo"),
 
+        // Pantalla de carga (Splash Screen) del host Uno: temporizador de barrido continuo y desvanecimientos suaves
+        RealTime("FileFlow.App.Uno/App.xaml.cs::PaceStartupVisualAsync::Delay", "pausa visual durante el arranque del host Uno para que el usuario aprecie el avance de módulos en la pantalla de carga; se salta en los modos de sondeo"),
+        RealTime("FileFlow.App.Uno/Controls/SplashScreenView.xaml.cs::.ctor::Timer", "temporizador de barrido continuo (shimmer) a 40 ms para animar el acento de la barra de progreso mientras la splash está visible"),
+        RealTime("FileFlow.App.Uno/SplashScreenWindow.xaml.cs::CloseWithFadeAsync::Delay", "desvanecimiento suave de opacidad al cerrar la ventana flotante de carga (16 ms por paso)"),
+        RealTime("FileFlow.App.Uno/MainWindow.xaml.cs::HideSplashOverlayAsync::Delay", "desvanecimiento suave de opacidad al ocultar la capa de carga superpuesta en Web/fallback (16 ms por paso)"),
+
         // ── Core: reintentos, planificador, sondeo del vigilante y la cola de la telemetría ──
         // Las pruebas del reintento usan initialBackoffMs: 10, así que la espera se ejecuta (corta, pero real).
         Exercised("FileFlow.Core/Engine/ExecutionRetryHelper.cs::ExecuteWithRetryAsync::Delay#1", "ExecuteWithRetryAsync", "AutomationAndResilienceTests"),

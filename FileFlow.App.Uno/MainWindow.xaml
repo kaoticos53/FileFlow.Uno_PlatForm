@@ -69,5 +69,14 @@
          versión anterior, y vive en su propio control — el host aporta la vista, el núcleo el view model.
          Es la última hija de la raíz para que quede POR ENCIMA del marco (y del cajón del menú). -->
     <controls:SettingsPanel x:Name="Settings" Grid.Row="0" Grid.RowSpan="3" />
+
+    <!-- Capa de pantalla de carga inicial (para entornos web/WASM o fallback de SO) -->
+    <Grid x:Name="SplashOverlayRoot" Grid.Row="0" Grid.RowSpan="3"
+          Background="{StaticResource CanvasBackgroundBrush}"
+          Visibility="Collapsed">
+      <controls:SplashScreenView x:Name="SplashOverlay"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center" />
+    </Grid>
   </Grid>
 </Window>
