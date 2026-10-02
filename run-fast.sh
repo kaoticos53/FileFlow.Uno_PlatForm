@@ -4,7 +4,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG="${CONFIGURATION:-Debug}"
-EXE="$SCRIPT_DIR/FileFlow.App.Uno/bin/$CONFIG/net10.0-desktop/FileFlow.App.Uno"
+EXE="$SCRIPT_DIR/FileFlow.App.Uno/bin/$CONFIG/net10.0-desktop/FileFlow.App"
 
 echo "========================================="
 echo "  FileFlow Studio - Host Uno (Desktop)   "

@@ -4,7 +4,6 @@ setlocal
 set CONFIG=Debug
 set PROJECT=FileFlow.App.Uno\FileFlow.App.Uno.csproj
 set EXE=FileFlow.App.Uno\bin\%CONFIG%\net10.0-windows10.0.19041.0\FileFlow.App.exe
-if not exist "%EXE%" set EXE=FileFlow.App.Uno\bin\%CONFIG%\net10.0-windows10.0.19041.0\FileFlow.App.Uno.exe
 
 echo =========================================
 echo   FileFlow Studio - Host Uno (WinUI 3)
@@ -15,9 +14,6 @@ if errorlevel 1 (
     echo [ERROR] La compilacion del host Uno fallo.
     exit /b 1
 )
-
-set EXE=FileFlow.App.Uno\bin\%CONFIG%\net10.0-windows10.0.19041.0\FileFlow.App.exe
-if not exist "%EXE%" set EXE=FileFlow.App.Uno\bin\%CONFIG%\net10.0-windows10.0.19041.0\FileFlow.App.Uno.exe
 
 if not exist "%EXE%" (
     echo [ERROR] No se encontro el ejecutable en '%EXE%'.

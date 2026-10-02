@@ -27,20 +27,11 @@ $scriptDir = $PSScriptRoot
 if (-not $scriptDir) { $scriptDir = (Get-Location).Path }
 
 $exePath = Join-Path $scriptDir "FileFlow.App.Uno\bin\$Configuration\net10.0-windows10.0.19041.0\FileFlow.App.exe"
-if (-not (Test-Path $exePath)) {
-    $exePathUno = Join-Path $scriptDir "FileFlow.App.Uno\bin\$Configuration\net10.0-windows10.0.19041.0\FileFlow.App.Uno.exe"
-    if (Test-Path $exePathUno) {
-        $exePath = $exePathUno
-    }
-}
 
 # Si no se encuentra en la configuracion solicitada, probar la otra configuracion (Debug/Release)
 if (-not (Test-Path $exePath)) {
     $fallbackConfig = if ($Configuration -eq "Debug") { "Release" } else { "Debug" }
     $fallbackPath = Join-Path $scriptDir "FileFlow.App.Uno\bin\$fallbackConfig\net10.0-windows10.0.19041.0\FileFlow.App.exe"
-    if (-not (Test-Path $fallbackPath)) {
-        $fallbackPath = Join-Path $scriptDir "FileFlow.App.Uno\bin\$fallbackConfig\net10.0-windows10.0.19041.0\FileFlow.App.Uno.exe"
-    }
     if (Test-Path $fallbackPath) {
         $exePath = $fallbackPath
         $Configuration = $fallbackConfig

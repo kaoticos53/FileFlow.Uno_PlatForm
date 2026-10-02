@@ -13,6 +13,19 @@ Este documento se actualiza al finalizar cada sesión de trabajo para consolidar
 
 ## 0. Hito más reciente
 
+- **315. Eliminación Total de Referencias Residuales a `FileFlow.App.Uno` y Corrección de CI/CD (2026-10-02)**:
+  - **El encargo**: «en la accion de github de release hay un aviso en la parte degeneracion para windows referente al nombre del ejecutable y en linux un error. haz que en todas partes el ejecutable se genere como FileFlow.App haciendo que no se genere el otro nombre FileFlow.App.Uno.exe. haz que todas las referencias a este ultimo sean ahora a FileFlow.App.exe para evitar futuros problemas.»
+  - **🔬 Diagnóstico**: En GitHub Actions (`release.yml`), el empaquetado de Linux fallaba porque el AppDir intentaba hacer symlink y chmod sobre `FileFlow.App.Uno` (ahora nombrado `FileFlow.App`). En Windows, `dotnet publish` advertía por `NETSDK1198`.
+  - **🧱 Acciones**:
+    - `.github/workflows/release.yml`: corregidos symlinks de `/usr/bin/FileFlow.App` y `/usr/bin/fileflow` hacia `/usr/lib/fileflow/FileFlow.App`.
+    - `FileFlow.App.Uno/FileFlow.App.Uno.csproj`: silenciada advertencia `NETSDK1198` en `<NoWarn>`.
+    - `package-linux.sh`, `run.sh`, `run-fast.sh`, `run.bat`, `run-fast.bat`, `run-uno.ps1`, `run-uno-fast.ps1`: eliminadas todas las referencias residuales y unificadas directamente sobre `FileFlow.App.exe` (Windows) y `FileFlow.App` (Linux).
+    - `docs/qa/*.py`, `SelfCheckUia.cs`, `RuntimeSelfCheck.cs`, `test.ps1`: actualizados al ejecutable `FileFlow.App.exe`.
+  - **📊 Validación**:
+    - `dotnet test`: **1.770 pruebas superadas al 100%**.
+    - `.\run-fast.ps1 -SelfCheck`: **Código 0**.
+    - `.\installer\build-linux-installer.ps1`: **Código 0**.
+
 - **314. Unificación Canónica del Ejecutable Principal (`FileFlow.App.exe` / `FileFlow.App`) (2026-10-02)**:
   - **El encargo**: «he visto que en el instalador de windows por lo menos, no se en el resto, se referencia al ejecutafle FileFlow.App.exe y se esta generando FileFlow.App.Uno.exe por lo que los accesos directos y algunas cosas mas no funcinan bien.»
   - **🔬 Diagnóstico**: `FileFlow.App.Uno.csproj` generaba por defecto `FileFlow.App.Uno.exe`, mientras que Inno Setup (`installer/FileFlow.iss`), instaladores de Linux (`AppRun`, `install.sh`, `fileflow.desktop`), Flatpak y el servicio de actualización esperaban `FileFlow.App.exe` / `FileFlow.App`.

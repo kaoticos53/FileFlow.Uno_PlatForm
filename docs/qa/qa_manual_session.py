@@ -57,7 +57,7 @@ PRIMARY = (99, 102, 241)   # #6366F1 CanvasAccentPrimaryBrush: borde de SELECCIO
 HERE = os.path.dirname(os.path.abspath(__file__))
 BIN = os.path.normpath(os.path.join(HERE, "..", "..", "FileFlow.App.Uno", "bin",
                                     "Debug", "net10.0-windows10.0.19041.0"))
-EXE = os.path.join(BIN, "FileFlow.App.Uno.exe")
+EXE = os.path.join(BIN, "FileFlow.App.exe")
 SHOTS = os.path.join(HERE, os.environ.get("FILEFLOW_QA_WORK", "qa-manual-247"))
 STATE = os.path.join(SHOTS, "session_state.json")
 CALIB = os.path.join(SHOTS, "calib_manual.json")

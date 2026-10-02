@@ -29,7 +29,7 @@ u32 = ctypes.windll.user32
 u32.SetProcessDPIAware()
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-EXE = os.path.join(HERE, "FileFlow.App.Uno.exe")
+EXE = os.path.join(HERE, "FileFlow.App.exe")
 CALIB = os.path.join(HERE, "calib.json")
 REPORT = os.path.join(HERE, "qa-manual-report.md")
 SHOTS = os.path.join(HERE, "qa-manual")

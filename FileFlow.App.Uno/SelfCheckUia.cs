@@ -12,7 +12,7 @@ using Microsoft.UI.Xaml;
 namespace FileFlow.App.Uno;
 
 /// <summary>
-/// El sondeo UIA desde fuera del proceso (<c>FileFlow.App.Uno.exe --selfcheck-uia</c>): la app
+/// El sondeo UIA desde fuera del proceso (<c>FileFlow.App.exe --selfcheck-uia</c>): la app
 /// arranca completa (DI, plugins, ejemplo cargado) y un HIJO EXTERNO (python + pywinauto, la vía
 /// sin UIAccess ya probada por las sondas QA de los hitos 237 y 238) la observa por UI Automation
 /// — anclas por AutomationId, foco del lienzo, estado del zoom, spotlight, buscador. La app escribe

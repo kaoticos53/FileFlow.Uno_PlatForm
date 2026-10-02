@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -8,7 +8,7 @@ using Microsoft.UI.Xaml;
 namespace FileFlow.App.Uno;
 
 /// <summary>
-/// El sondeo en runtime del host Uno (<c>FileFlow.App.Uno.exe --selfcheck</c>): arranca la aplicación real
+/// El sondeo en runtime del host Uno (<c>FileFlow.App.exe --selfcheck</c>): arranca la aplicación real
 /// (DI completa, plugins descubiertos, ejemplo cargado) y recorre el árbol visual de la tarjeta para
 /// confirmar que los bindings, recursos y conversores del host se resuelven —la prueba que la compilación no
 /// puede dar—. Imprime el inventario en consola y termina con código 0 (verificado) o 1 (alguna expectativa

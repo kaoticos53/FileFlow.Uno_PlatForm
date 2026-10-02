@@ -28,7 +28,7 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BIN = os.path.normpath(os.path.join(HERE, "..", "..", "FileFlow.App.Uno", "bin", "Debug", "net10.0-windows10.0.19041.0"))
-EXE = os.path.join(BIN, "FileFlow.App.Uno.exe")
+EXE = os.path.join(BIN, "FileFlow.App.exe")
 
 import ctypes
 u32 = ctypes.windll.user32

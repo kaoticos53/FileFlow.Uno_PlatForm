@@ -22,6 +22,33 @@
 
 ## Ventana viva
 
+## [2026-10-02] - Hito 315: Eliminación Total de Referencias Residuales al Binario `FileFlow.App.Uno` y Corrección de CI/CD
+
+### 🎯 El encargo
+«en la accion de github de release hay un aviso en la parte degeneracion para windows referente al nombre del ejecutable y en linux un error. haz que en todas partes el ejecutable se genere como FileFlow.App haciendo que no se genere el otro nombre FileFlow.App.Uno.exe. haz que todas las referencias a este ultimo sean ahora a FileFlow.App.exe para evitar futuros problemas.»
+
+### 🔬 El diagnóstico
+1. En el flujo de CI/CD de GitHub Actions (`release.yml`), el trabajo de empaquetado de Linux fallaba con `chmod: cannot access '/tmp/FileFlow.AppDir/usr/lib/fileflow/FileFlow.App.Uno': No such file or directory` debido a enlaces simbólicos y permisos que aún apuntaban al nombre antiguo.
+2. En Windows, MSBuild emitía la advertencia `NETSDK1198: A publish profile with the name 'win-AnyCPU.pubxml' was not found in the project` durante `dotnet publish`.
+3. Existían referencias residuales al binario obsoleto en scripts de lanzamiento (`run.sh`, `run-fast.sh`, `run.bat`, `run-fast.bat`, `package-linux.sh`), scripts de QA (`docs/qa/*.py`) y pruebas de cierre de procesos (`test.ps1`).
+
+### 🧱 Las piezas
+- **`.github/workflows/release.yml`**:
+  - Actualizados los enlaces simbólicos y permisos de AppDir a `/usr/lib/fileflow/FileFlow.App`.
+- **`FileFlow.App.Uno/FileFlow.App.Uno.csproj`**:
+  - Añadida la supresión de la advertencia `NETSDK1198` en `<NoWarn>` para compilaciones limpias en entornos CI.
+- **Scripts de Shell y Automatización (`run.sh`, `run-fast.sh`, `package-linux.sh`, `run.bat`, `run-fast.bat`, `run-uno.ps1`, `run-uno-fast.ps1`)**:
+  - Eliminadas las referencias y fallbacks al binario antiguo, apuntando exclusivamente a `FileFlow.App.exe` (Windows) y `FileFlow.App` (Linux).
+- **Scripts de QA y Sondas (`docs/qa/*.py`, `SelfCheckUia.cs`, `RuntimeSelfCheck.cs`, `test.ps1`)**:
+  - Homogeneizados todos los lanzadores y verificadores a `FileFlow.App.exe`.
+
+### 📊 Verificación y Métricas
+- `dotnet test`: 1.770 pruebas superadas al 100% (0 fallos, 1 omitida).
+- `.\run-fast.ps1 -SelfCheck`: Verificado con código 0 sobre `FileFlow.App.exe`.
+- `.\installer\build-linux-installer.ps1`: Generación completa de paquetes de Linux (.tar.gz, árbol Debian y AppDir) con código 0.
+
+---
+
 ## [2026-10-02] - Hito 314: Unificación Canónica del Ejecutable Principal (`FileFlow.App.exe` / `FileFlow.App`)
 
 ### 🎯 El encargo

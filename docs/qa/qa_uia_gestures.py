@@ -28,7 +28,7 @@ u32.SetProcessDPIAware()
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BIN = os.path.normpath(os.path.join(HERE, "..", "..", "FileFlow.App.Uno", "bin", "Debug", "net10.0-windows10.0.19041.0"))
-EXE = os.path.join(BIN, "FileFlow.App.Uno.exe")
+EXE = os.path.join(BIN, "FileFlow.App.exe")
 REPORT = os.path.join(HERE, "qa_uia_gestures_report.md")
 
 VK_MAP = {c: 0x41 + (ord(c) - ord("A")) for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}

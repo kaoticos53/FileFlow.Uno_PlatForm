@@ -198,9 +198,9 @@ jobs:
           mkdir -p "${APPDIR}/usr/bin" "${APPDIR}/usr/lib/fileflow" "${APPDIR}/usr/share/applications" "${APPDIR}/usr/share/icons/hicolor/256x256/apps"
           
           cp -r /tmp/fileflow-payload/* "${APPDIR}/usr/lib/fileflow/"
-          ln -sf /usr/lib/fileflow/FileFlow.App.Uno "${APPDIR}/usr/bin/FileFlow.App.Uno"
-          ln -sf /usr/lib/fileflow/FileFlow.App.Uno "${APPDIR}/usr/bin/fileflow"
-          chmod +x "${APPDIR}/usr/lib/fileflow/FileFlow.App.Uno"
+          ln -sf /usr/lib/fileflow/FileFlow.App "${APPDIR}/usr/bin/FileFlow.App"
+          ln -sf /usr/lib/fileflow/FileFlow.App "${APPDIR}/usr/bin/fileflow"
+          chmod +x "${APPDIR}/usr/lib/fileflow/FileFlow.App"
           
           cp installer/linux/AppRun "${APPDIR}/AppRun"
           chmod +x "${APPDIR}/AppRun"

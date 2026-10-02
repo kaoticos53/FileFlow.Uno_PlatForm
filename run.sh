@@ -11,7 +11,7 @@ for arg in "$@"; do
 done
 
 PROJECT="$SCRIPT_DIR/FileFlow.App.Uno/FileFlow.App.Uno.csproj"
-EXE="$SCRIPT_DIR/FileFlow.App.Uno/bin/$CONFIG/net10.0-desktop/FileFlow.App.Uno"
+EXE="$SCRIPT_DIR/FileFlow.App.Uno/bin/$CONFIG/net10.0-desktop/FileFlow.App"
 
 echo "========================================="
 echo "  FileFlow Studio - Host Uno (Desktop)   "

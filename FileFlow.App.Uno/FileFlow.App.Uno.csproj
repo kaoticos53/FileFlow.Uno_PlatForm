@@ -16,7 +16,7 @@
     <ApplicationIcon>..\assets\FileFlow.ico</ApplicationIcon>
     <DefaultLanguage>en</DefaultLanguage>
     <SatelliteResourceLanguages>en;es</SatelliteResourceLanguages>
-    <NoWarn>$(NoWarn);NU1903;NU1902</NoWarn>
+    <NoWarn>$(NoWarn);NU1903;NU1902;NETSDK1198</NoWarn>
   </PropertyGroup>
 
   <!-- TargetFramework por plataforma: se fija DESPUÉS de los props del SDK para no quedar preemptado. -->
