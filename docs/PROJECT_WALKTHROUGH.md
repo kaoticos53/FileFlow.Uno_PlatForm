@@ -22,7 +22,51 @@
 
 ## Ventana viva
 
-## [2026-10-02] - Hito 308: Renderizado Fluido, Escalado DPI y Tematizado de la Pantalla de Carga (SplashScreen)
+## [2026-10-02] - Hito 309: Restauración de la Consola de Logs Inferior y Corrección de Bloqueo de Recursos en Arranque
+
+### 🎯 El encargo
+«falta el panel de logs que debe estar en la zona de abajo en un panel ocultable y redimensionable con filtros para los logs por niveles (todos, error, advertencias, debug, info..) y posibilidad de esportar todo a texto. cada log aparece como un a linea resumida que al pulsarla se expande para ver todo el contenido con formateado de los datos json si los contine.»
+«parece que al ejecutar run-uno-fast.ps1 con el modificador -SelfCheck o sin el se queda colgado en la pantalla de carga en cargando preferencias.»
+
+### 🔬 El diagnóstico
+1. **Ausencia del panel de logs inferior**: Durante la migración de Avalonia a Uno Platform, la consola de ejecución portable (`LogViewModel`) no tenía su representación de vista (`LogPanel`) en el host Uno (`MainWindow.xaml`), privando al usuario de la visualización en vivo de la ejecución de nodos, advertencias y errores.
+2. **Bloqueo en "Cargando preferencias..." por recursos estáticos faltantes**: Al instanciar `MainWindow` en `App.xaml.cs`, el cargador XAML de WinUI 3 parseaba referencias a `{StaticResource CanvasAccentErrorBrush}` y `{StaticResource CanvasAccentWarningBrush}`. Dichos nombres de pincel no existían en `App.xaml` ni en `UnoThemeHost.RepublishTokens()`, lo que provocaba un fallo silencioso / bloqueo en el hilo de UI dentro del constructor de `MainWindow()`, dejando la ventana de Splash indefinidamente congelada en su último estado ("Cargando preferencias...").
+3. **Proceso zombi bloqueando binarios**: Instancias previas huérfanas de `FileFlow.App.Uno.exe` bloqueaban los ensamblados en `bin\Debug\net10.0-windows10.0.19041.0\`, impidiendo que los builds incrementales o scripts rápidos reflejaran el código recién generado.
+
+### 🧱 Las piezas
+- **`FileFlow.App.Uno/Controls/LogItemViewModel.cs`**:
+  - Adaptador de presentación reactivo para `StructuredLogRecord`.
+  - Propiedades `IsExpanded`, `ChevronGlyph`, `FormattedTimestamp`, `BadgeText`, `LevelBadgeBackground`, `FormattedShortItemId`, `DurationText`, `DisplayDetails`.
+  - Métodos de copia al portapapeles (`CopyJson`, `CopyFullLine`, `CopyMessage`, `CopyFilePath`).
+  - Resolución robusta de pinceles temáticos (`CanvasErrorBrush`, `CanvasWarningBrush`, `CanvasPurpleBrush`, etc.) con fallbacks seguros.
+- **`FileFlow.App.Uno/Controls/LogPanel.xaml` y `.xaml.cs`**:
+  - Barra superior de herramientas con filtros por píldoras reactivas (Todos, Errores, Avisos, Info, Debug) que exhiben insignias con recuentos en vivo (`TxtErrorCount`, etc.).
+  - Cuadro de búsqueda de texto instantáneo con botón de borrado (`SearchBox`, `BtnClearSearch`).
+  - Conmutador de modo en vivo (`BtnLiveToggle`), botón de exportación (`BtnExport`), botón de limpieza (`BtnClear`) y botón de minimizado (`BtnCollapse`).
+  - Barra de progreso sutil (`SlimProgressBar`) y lista virtualizada `ListView` con `ListViewItem` expandibles.
+  - Vista compacta de una línea con hora, severidad, nodo, archivo, badge JSON y mensaje elipsado; al hacer clic se despliega la tarjeta con metadatos, ruta, botones de copia y caja de texto con formato JSON (`DisplayDetails`).
+- **`FileFlow.App.Uno/Controls/PanelSplitter.cs`**:
+  - Incorporada la capacidad de redimensionar filas horizontales mediante `AttachRow(RowDefinition, min, max, widensDownwards)` utilizando `InputSystemCursorShape.SizeNorthSouth` y lógica de arrastre vertical `DragRowBy`.
+- **`FileFlow.App.Uno/MainWindow.xaml` y `.xaml.cs`**:
+  - Integrada la fila del splitter (`LogRowSplitter`) y la fila de consola (`LogRow`, por defecto 180px, rango 80–550px).
+  - Añadido el control `LogPanel` (`LogsConsole`) y el divisor `PanelSplitter` (`LogSplitter`).
+  - Botón de alternancia rápida en la barra de estado (`BtnToggleLogs`) con badge reactivo de errores en tiempo real (`StatusBadgeErrors`).
+  - Métodos `ApplyLogPanelVisibility` y cableado reactivo de `CollapseRequested` y `ErrorCount`.
+- **`FileFlow.App.Uno/App.xaml` y `Platform/UnoThemeHost.cs`**:
+  - Declarados los pinceles `CanvasErrorBrush`, `CanvasAccentErrorBrush`, `CanvasAccentWarningBrush`, `CanvasPurpleBrush` y `CanvasAccentPurpleBrush` en `App.xaml`.
+  - Vinculada su republicación dinámica en caliente en `UnoThemeHost.RepublishTokens()` a partir de `theme.AccentError`, `theme.AccentWarning` y `theme.AccentPurple`.
+- **`FileFlow.App.Uno/App.xaml.cs`**:
+  - Cableado de `HostUi.SetLogExporter` con `IFileDialogService` y volcado asíncrono con `SqliteLogStore.Instance.ExportLogsAsync`.
+- **`FileFlow.App.Uno/Resources/Strings.resx` y `Strings.es.resx`**:
+  - Añadida la clave `Uno_SplitterLogs` para soporte multilingüe completo y accesibilidad UIA.
+- **`FileFlow.Tests/Unit/App/UnoLogPanelGuardTests.cs`**:
+  - 5 pruebas de guardia AST que verifican la presencia del control, splitter, badges, integración en `MainWindow` y registro de exportador.
+
+### 📊 La validación
+- **Compilación de la solución (`dotnet build FileFlow.App.Uno`)**: **0 errores, 0 advertencias**.
+- **Pruebas de guardia AST (`dotnet test --filter GuardTests`)**: **301 de 301 superadas al 100%**.
+- **Sondeo en tiempo real (`.\run-uno-fast.ps1 -SelfCheck`)**: **83 de 83 verificaciones [OK], código de salida 0**.
+- **Sondeo de barra y cajón (`.\run-uno-fast.ps1 -SelfCheckControlBar`)**: **VERIFICADO, código de salida 0**.
 
 ### 🎯 El encargo
 «ahora sale una ventana de arranque pero solo es un cuadrado negro sin ningun contenido visible. deberia tener el nombre de la aplicacion, version , etc y una barra de carga de modulos o algo asi. deberia seguir el tema de la aplicacion»

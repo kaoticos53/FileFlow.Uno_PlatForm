@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
@@ -65,6 +65,7 @@
   <!-- Las ASAS del marco del editor (hito 270): el nombre que lee un lector de pantalla y el canal externo -->
   <data name="Uno_SplitterToolbox" xml:space="preserve"><value>Redimensionar el cajón de nodos</value></data>
   <data name="Uno_SplitterInspector" xml:space="preserve"><value>Redimensionar la ficha del nodo</value></data>
+  <data name="Uno_SplitterLogs" xml:space="preserve"><value>Redimensionar consola de ejecución</value></data>
 
   <!-- ═══ Superficie de ajustes ═══ -->
 

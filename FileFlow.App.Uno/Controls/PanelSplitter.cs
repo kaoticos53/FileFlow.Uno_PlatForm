@@ -30,11 +30,17 @@ public sealed class PanelSplitter : Grid
 {
     private ColumnDefinition? _column;
     private ColumnDefinition? _canvas;
+    private RowDefinition? _row;
+    private RowDefinition? _workspaceRow;
+    private bool _isRowMode;
+    private bool _widensDownwards;
     private double _min;
     private double _max;
     private bool _widensToTheRight;
     private double _dragStartX;
     private double _dragStartWidth;
+    private double _dragStartY;
+    private double _dragStartHeight;
 
     public PanelSplitter()
     {
@@ -63,6 +69,7 @@ public sealed class PanelSplitter : Grid
     /// <param name="canvas">La columna del lienzo: su mínimo es el segundo tope del arrastre.</param>
     public void Attach(ColumnDefinition column, double min, double max, bool widensToTheRight, ColumnDefinition canvas)
     {
+        _isRowMode = false;
         _column = column ?? throw new ArgumentNullException(nameof(column));
         _canvas = canvas;
         _min = min;
@@ -71,12 +78,42 @@ public sealed class PanelSplitter : Grid
         _column.MinWidth = min;
         _column.MaxWidth = max;
         _column.Width = new GridLength(Math.Clamp(_column.Width.Value, min, max), GridUnitType.Pixel);
+        Height = double.NaN;
+        Width = 5;
+        HorizontalAlignment = HorizontalAlignment.Center;
+        VerticalAlignment = VerticalAlignment.Stretch;
         ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.SizeWestEast);
+    }
+
+    /// <summary>
+    /// Ata el asa a su fila (para el panel de logs inferior): la altura que gobierna y hacia dónde crece.
+    /// </summary>
+    public void AttachRow(RowDefinition row, double min, double max, bool widensDownwards, RowDefinition? workspaceRow = null)
+    {
+        _isRowMode = true;
+        _row = row ?? throw new ArgumentNullException(nameof(row));
+        _workspaceRow = workspaceRow;
+        _min = min;
+        _max = max;
+        _widensDownwards = widensDownwards;
+        _row.MinHeight = min;
+        _row.MaxHeight = max;
+        _row.Height = new GridLength(Math.Clamp(_row.Height.Value, min, max), GridUnitType.Pixel);
+        Width = double.NaN;
+        Height = 5;
+        HorizontalAlignment = HorizontalAlignment.Stretch;
+        VerticalAlignment = VerticalAlignment.Center;
+        ProtectedCursor = InputSystemCursor.Create(InputSystemCursorShape.SizeNorthSouth);
     }
 
     /// <summary>El ancho que el asa ha fijado (el que hay que reponer cuando la columna vuelve a estar).</summary>
     internal double RememberedWidth => _column is { } column && column.ActualWidth > 0
         ? column.ActualWidth
+        : _min;
+
+    /// <summary>La altura que el asa ha fijado (el que hay que reponer cuando la fila vuelve a estar).</summary>
+    internal double RememberedHeight => _row is { } row && row.ActualHeight > 0
+        ? row.ActualHeight
         : _min;
 
     /// <summary>
@@ -104,6 +141,21 @@ public sealed class PanelSplitter : Grid
         return _column.ActualWidth + canvasRoom;
     }
 
+    /// <summary>El espacio que puede crecer esta fila sin comerse el mínimo del área de trabajo.</summary>
+    private double RowRoom()
+    {
+        if (_row is null)
+        {
+            return double.PositiveInfinity;
+        }
+
+        double workspaceRoom = _workspaceRow is { } ws
+            ? Math.Max(0, ws.ActualHeight - ws.MinHeight)
+            : double.PositiveInfinity;
+
+        return _row.ActualHeight + workspaceRoom;
+    }
+
     /// <summary>El mismo camino que el arrastre, sin puntero: lo usa la sonda del selfcheck.</summary>
     internal double DragBy(double delta)
     {
@@ -117,18 +169,43 @@ public sealed class PanelSplitter : Grid
         return width;
     }
 
+    /// <summary>Arrastre por código para filas (panel de logs).</summary>
+    internal double DragRowBy(double delta)
+    {
+        if (_row is null)
+        {
+            return 0;
+        }
+
+        double height = Resolve(_row.ActualHeight, delta, _min, _max, RowRoom());
+        _row.Height = new GridLength(height, GridUnitType.Pixel);
+        return height;
+    }
+
     private double PointerX(PointerRoutedEventArgs e) =>
         Parent is UIElement parent ? e.GetCurrentPoint(parent).Position.X : e.GetCurrentPoint(null).Position.X;
 
+    private double PointerY(PointerRoutedEventArgs e) =>
+        Parent is UIElement parent ? e.GetCurrentPoint(parent).Position.Y : e.GetCurrentPoint(null).Position.Y;
+
     private void OnSplitterPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (_column is null || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        if ((_column is null && _row is null) || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
             return;
         }
 
-        _dragStartX = PointerX(e);
-        _dragStartWidth = _column.ActualWidth;
+        if (_isRowMode && _row is not null)
+        {
+            _dragStartY = PointerY(e);
+            _dragStartHeight = _row.ActualHeight;
+        }
+        else if (_column is not null)
+        {
+            _dragStartX = PointerX(e);
+            _dragStartWidth = _column.ActualWidth;
+        }
+
         Background = AccentBrush();
         CapturePointer(e.Pointer);
         e.Handled = true;
@@ -136,24 +213,32 @@ public sealed class PanelSplitter : Grid
 
     private void OnSplitterMoved(object sender, PointerRoutedEventArgs e)
     {
-        if (_column is null || e.GetCurrentPoint(this).Properties.IsLeftButtonPressed is false)
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed is false)
         {
             return;
         }
 
-        // El arrastre se mide contra el PUNTO DE PARTIDA del gesto (el asa se mueve con la columna, así que su
-        // propio sistema de coordenadas no sirve como referencia) y el ancho sale de la misma cuenta que la
-        // sonda ejercita.
-        double delta = PointerX(e) - _dragStartX;
-        double width = Resolve(
-            _dragStartWidth, _widensToTheRight ? delta : -delta, _min, _max, Room());
-        _column.Width = new GridLength(width, GridUnitType.Pixel);
-        e.Handled = true;
+        if (_isRowMode && _row is not null)
+        {
+            double delta = PointerY(e) - _dragStartY;
+            double height = Resolve(
+                _dragStartHeight, _widensDownwards ? delta : -delta, _min, _max, RowRoom());
+            _row.Height = new GridLength(height, GridUnitType.Pixel);
+            e.Handled = true;
+        }
+        else if (_column is not null)
+        {
+            double delta = PointerX(e) - _dragStartX;
+            double width = Resolve(
+                _dragStartWidth, _widensToTheRight ? delta : -delta, _min, _max, Room());
+            _column.Width = new GridLength(width, GridUnitType.Pixel);
+            e.Handled = true;
+        }
     }
 
     private void OnSplitterReleased(object sender, PointerRoutedEventArgs e)
     {
-        if (_column is null)
+        if (_column is null && _row is null)
         {
             return;
         }

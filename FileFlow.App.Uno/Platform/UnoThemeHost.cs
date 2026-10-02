@@ -86,7 +86,11 @@ public static class UnoThemeHost
         SetBrush(resources, "CanvasAccentGlowBrush", theme.AccentGlow, "#818CF8");
         SetBrush(resources, "CanvasSuccessBrush", theme.AccentSuccess, "#10B981");
         SetBrush(resources, "CanvasWarningBrush", theme.AccentWarning, "#F59E0B");
+        SetBrush(resources, "CanvasAccentWarningBrush", theme.AccentWarning, "#F59E0B");
+        SetBrush(resources, "CanvasErrorBrush", theme.AccentError, "#EF4444");
+        SetBrush(resources, "CanvasAccentErrorBrush", theme.AccentError, "#EF4444");
         SetBrush(resources, "CanvasPurpleBrush", theme.AccentPurple, "#A855F7");
+        SetBrush(resources, "CanvasAccentPurpleBrush", theme.AccentPurple, "#A855F7");
         SetBrush(resources, "CanvasWireBrush", theme.WireColorStart, "#818CF8");
     }
 

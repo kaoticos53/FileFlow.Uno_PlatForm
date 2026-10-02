@@ -129,6 +129,25 @@ public partial class App : Application
             // nulo declarado y el botón de la tarjeta no abre nada.
             windowService: s_services.GetRequiredService<IWindowService>());
 
+        // Exportación de registros: el diálogo nativo de guardar es del host; la consola portable lo pide.
+        HostUi.SetLogExporter(async () =>
+        {
+            var fileDialog = s_services.GetRequiredService<FileFlow.App.Services.IFileDialogService>();
+            string defaultName = $"fileflow_logs_{DateTime.Now:yyyyMMdd_HHmmss}.log";
+            string? path = await fileDialog.ShowSaveFileDialogAsync(
+                LocalizationManager.Instance.GetString("Log_ExportTitle", "Exportar Registros de Logs"),
+                "Archivos de Log (*.log;*.txt)|*.log;*.txt|Todos los archivos (*.*)|*.*",
+                "log",
+                defaultName);
+
+            if (string.IsNullOrEmpty(path)) return null;
+
+            await FileFlow.Core.Telemetry.SqliteLogStore.Instance.FlushPendingLogsAsync().ConfigureAwait(false);
+            await using var writer = new StreamWriter(path);
+            await FileFlow.Core.Telemetry.SqliteLogStore.Instance.ExportLogsAsync(writer).ConfigureAwait(false);
+            return path;
+        });
+
         // El contenedor para los ViewModels del núcleo que se construyen sin él (los que el host crea con
         // «new»): sin esto sus avisos caen al nulo aunque el host tenga diálogos de verdad.
         CoreDialogHost.Services = s_services;

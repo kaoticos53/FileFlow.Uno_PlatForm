@@ -7,7 +7,9 @@
   <Grid x:Name="root">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
-      <RowDefinition Height="*" />
+      <RowDefinition Height="*" MinHeight="180" />
+      <RowDefinition x:Name="LogRowSplitter" Height="Auto" />
+      <RowDefinition x:Name="LogRow" Height="180" MinHeight="0" MaxHeight="550" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
@@ -50,28 +52,56 @@
                                    VerticalAlignment="Stretch" HorizontalAlignment="Stretch" />
     </Grid>
 
-    <Border Grid.Row="2" Background="{StaticResource CanvasBgDarkBrush}" Padding="16,8">
+    <!-- Asa horizontal para redimensionar el panel de logs inferior -->
+    <controls:PanelSplitter x:Name="LogSplitter" Grid.Row="2"
+                            AutomationProperties.AutomationId="LogSplitter" />
+
+    <!-- Consola de logs y ejecución inferior (ocultable y redimensionable) -->
+    <controls:LogPanel x:Name="LogsConsole" Grid.Row="3" />
+
+    <Border Grid.Row="4" Background="{StaticResource CanvasBgDarkBrush}" Padding="16,8">
       <!-- El botón Ejecutar (hito 243): el comando canónico del ControlBar del núcleo (el mismo
            de la versión anterior), montado por código en StatusBarHost para que el guion UIA externo
            pueda invocar el ciclo completo del flujo. -->
-      <StackPanel x:Name="StatusBarHost" Spacing="4">
-        <TextBlock x:Name="engineStatus" Opacity="0.7" TextWrapping="Wrap" FontSize="11"
-                   Foreground="{StaticResource CanvasTextBrush}" />
-      </StackPanel>
+      <Grid ColumnSpacing="8">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <StackPanel x:Name="StatusBarHost" Grid.Column="0" Spacing="4">
+          <TextBlock x:Name="engineStatus" Opacity="0.7" TextWrapping="Wrap" FontSize="11"
+                     Foreground="{StaticResource CanvasTextBrush}" />
+        </StackPanel>
+
+        <!-- Botón para alternar la visibilidad de la consola de logs -->
+        <Button x:Name="BtnToggleLogs" Grid.Column="1" Click="OnToggleLogsClicked"
+                Padding="8,3" FontSize="11" CornerRadius="4"
+                Background="Transparent" BorderThickness="1" BorderBrush="{StaticResource CanvasBorderBrush}"
+                AutomationProperties.AutomationId="StatusBarToggleLogsButton"
+                ToolTipService.ToolTip="Mostrar / Ocultar consola de logs">
+          <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <TextBlock Text="💻 Consola" FontSize="11" Foreground="{StaticResource CanvasTextBrush}" />
+            <Border x:Name="StatusBadgeErrors" Background="{StaticResource CanvasErrorBrush}" CornerRadius="6" Padding="4,0" Visibility="Collapsed">
+              <TextBlock x:Name="TxtStatusErrors" Text="0" FontSize="10" FontWeight="Bold" Foreground="White" />
+            </Border>
+          </StackPanel>
+        </Button>
+      </Grid>
     </Border>
 
     <!-- El cajón del menú principal (hito 257): el «menú» de la barra, desplegado sobre toda la ventana
          como el de la versión anterior (velo + panel de 320 px a la izquierda) y con el mismo estado
          (ControlBar.IsMenuOpen) que conmuta el botón «Menú». -->
-    <controls:MainMenuDrawer x:Name="Drawer" Grid.Row="0" Grid.RowSpan="3" />
+    <controls:MainMenuDrawer x:Name="Drawer" Grid.Row="0" Grid.RowSpan="5" />
 
     <!-- La superficie de ajustes (hito 255): se despliega sobre TODA la ventana, como el cajón de la
          versión anterior, y vive en su propio control — el host aporta la vista, el núcleo el view model.
          Es la última hija de la raíz para que quede POR ENCIMA del marco (y del cajón del menú). -->
-    <controls:SettingsPanel x:Name="Settings" Grid.Row="0" Grid.RowSpan="3" />
+    <controls:SettingsPanel x:Name="Settings" Grid.Row="0" Grid.RowSpan="5" />
 
     <!-- Capa de pantalla de carga inicial (para entornos web/WASM o fallback de SO) -->
-    <Grid x:Name="SplashOverlayRoot" Grid.Row="0" Grid.RowSpan="3"
+    <Grid x:Name="SplashOverlayRoot" Grid.Row="0" Grid.RowSpan="5"
           Background="{StaticResource CanvasBackgroundBrush}"
           Visibility="Collapsed">
       <controls:SplashScreenView x:Name="SplashOverlay"

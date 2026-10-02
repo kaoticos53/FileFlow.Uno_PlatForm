@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
@@ -68,6 +68,7 @@
   <!-- Las ASAS del marco del editor (hito 270): el nombre que lee un lector de pantalla y el canal externo -->
   <data name="Uno_SplitterToolbox" xml:space="preserve"><value>Resize the node drawer</value></data>
   <data name="Uno_SplitterInspector" xml:space="preserve"><value>Resize the inspector panel</value></data>
+  <data name="Uno_SplitterLogs" xml:space="preserve"><value>Resize execution console</value></data>
 
   <!-- ═══ Settings surface (the same four tabs of the desktop's WorkflowSettingsWindow) ═══ -->
 

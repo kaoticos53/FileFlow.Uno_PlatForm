@@ -95,6 +95,8 @@ public sealed partial class MainWindow : Window
     /// visita al botón del inspector.</para>
     /// </summary>
     private double _inspectorWidthBeforeCollapse = 300;
+    private double _logHeightBeforeCollapse = 180;
+    private bool _isLogPanelOpen = true;
 
     /// <summary>
     /// Ata las dos asas del marco a sus columnas, con el reparto que la versión anterior declara (cajón 180–480,
@@ -105,6 +107,7 @@ public sealed partial class MainWindow : Window
     {
         ToolboxSplitter.Attach(ToolboxColumn, min: 180, max: 480, widensToTheRight: true, canvas: CanvasColumn);
         InspectorSplitter.Attach(InspectorColumn, min: 220, max: 750, widensToTheRight: false, canvas: CanvasColumn);
+        LogSplitter.AttachRow(LogRow, min: 80, max: 550, widensDownwards: false);
         ApplySplitterNames();
     }
 
@@ -115,6 +118,8 @@ public sealed partial class MainWindow : Window
             "Uno_SplitterToolbox", "Redimensionar el cajón de nodos"));
         AutomationProperties.SetName(InspectorSplitter, LocalizationManager.Instance.GetString(
             "Uno_SplitterInspector", "Redimensionar la ficha del nodo"));
+        AutomationProperties.SetName(LogSplitter, LocalizationManager.Instance.GetString(
+            "Uno_SplitterLogs", "Redimensionar consola de ejecución"));
     }
 
     // ── La superficie que mide la sonda del MARCO (hito 272) ──
@@ -163,6 +168,43 @@ public sealed partial class MainWindow : Window
             InspectorColumn.MinWidth = 0;
             InspectorColumn.Width = new GridLength(0, GridUnitType.Pixel);
         }
+    }
+
+    /// <summary>
+    /// Aplica la visibilidad del panel de logs: colapsa o restaura la fila y el splitter horizontal.
+    /// </summary>
+    internal void ApplyLogPanelVisibility(bool isOpen)
+    {
+        if (!isOpen && LogRow.ActualHeight > 0)
+        {
+            _logHeightBeforeCollapse = LogRow.ActualHeight;
+        }
+        else if (!isOpen && LogRow.Height.IsAbsolute && LogRow.Height.Value > 0)
+        {
+            _logHeightBeforeCollapse = LogRow.Height.Value;
+        }
+
+        _isLogPanelOpen = isOpen;
+        LogsConsole.Visibility = isOpen ? Visibility.Visible : Visibility.Collapsed;
+        LogSplitter.Visibility = isOpen ? Visibility.Visible : Visibility.Collapsed;
+
+        if (isOpen)
+        {
+            LogRow.MinHeight = 80;
+            LogRow.MaxHeight = 550;
+            double targetHeight = Math.Clamp(_logHeightBeforeCollapse, 80, 550);
+            LogRow.Height = new GridLength(targetHeight, GridUnitType.Pixel);
+        }
+        else
+        {
+            LogRow.MinHeight = 0;
+            LogRow.Height = new GridLength(0, GridUnitType.Pixel);
+        }
+    }
+
+    private void OnToggleLogsClicked(object sender, RoutedEventArgs e)
+    {
+        ApplyLogPanelVisibility(!_isLogPanelOpen);
     }
 
     /// <summary>
@@ -271,6 +313,20 @@ public sealed partial class MainWindow : Window
             Toolbox.Vm = mainVm.Toolbox;
             Toolbox.Editor = mainVm.Editor;
             Inspector.Vm = mainVm.NodeInspector;
+            LogsConsole.Vm = mainVm.LogConsole;
+            LogsConsole.CollapseRequested += (_, _) => ApplyLogPanelVisibility(false);
+
+            mainVm.LogConsole.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(LogViewModel.ErrorCount))
+                {
+                    DispatcherQueue.TryEnqueue(() =>
+                    {
+                        TxtStatusErrors.Text = mainVm.LogConsole.ErrorCount.ToString();
+                        StatusBadgeErrors.Visibility = mainVm.LogConsole.ErrorCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+                    });
+                }
+            };
 
             // Hito 255 — la superficie de AJUSTES del host: la vista es del host, el view model es el
             // MISMO WorkflowSettingsViewModel portable que alimenta la ventana de ajustes de la versión anterior
