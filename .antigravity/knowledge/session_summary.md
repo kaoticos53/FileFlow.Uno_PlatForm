@@ -13,6 +13,18 @@ Este documento se actualiza al finalizar cada sesión de trabajo para consolidar
 
 ## 0. Hito más reciente
 
+- **310. Eliminación completa del soporte y referencias a iOS/iPadOS (2026-10-02)**:
+  - **El encargo**: «elimina lo de compilar, ejecutable e instalador para ios».
+  - **🔬 Diagnóstico**: Se detectaron restos condicionales para iOS (`net10.0-ios`) en `FileFlow.App.Uno.csproj`, parámetros obsoletos (`-IncludeIos`) en `build-matrix.ps1`, y referencias desactualizadas en manuales y documentación de desarrollo.
+  - **🧱 Acciones**:
+    - `FileFlow.App.Uno/FileFlow.App.Uno.csproj`: eliminado el bloque condicional `<PropertyGroup Condition="'$(FileFlowTarget)' == 'ios'">` (`net10.0-ios`).
+    - `build-matrix.ps1`: retirado el modificador `-IncludeIos` y el target `ios`. La matriz comprueba ahora `desktop` y `wasm`.
+    - Documentación y guías actualizadas: `AGENTS.md`, `README.md`, `docs/setup_and_deployment.md`, `docs/contributing.md`, `docs/ARCHITECTURE_DEEP_DIVE.md`, `docs/architecture.md`, `docs/README.md`.
+    - Suite de pruebas y guardias: actualizado `mutations/COVERAGE.md` y ampliados los glifos de la consola de logs en `UiIconographyTests.cs`.
+  - **📊 Validación**:
+    - `.\build-matrix.ps1`: **0 errores** (`desktop`, `wasm`).
+    - `dotnet test`: **1.767 pruebas superadas al 100% (0 errores, 1 omitida)**.
+
 - **309. Restauración de la Consola de Logs Inferior y Corrección de Bloqueo en Arranque (2026-10-02)**:
   - **El encargo**: «falta el panel de logs que debe estar en la zona de abajo en un panel ocultable y redimensionable con filtros para los logs por niveles (todos, error, advertencias, debug, info..) y posibilidad de esportar todo a texto. cada log aparece como un a linea resumida que al pulsarla se expande para ver todo el contenido con formateado de los datos json si los contine.» «parece que al ejecutar run-uno-fast.ps1 con el modificador -SelfCheck o sin el se queda colgado en la pantalla de carga en cargando preferencias.»
   - **🔬 Diagnóstico**:

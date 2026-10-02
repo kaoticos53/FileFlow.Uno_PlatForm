@@ -23,7 +23,7 @@
 
 ### 🌟 Key Features
 
-- **Visual DAG Workflow Designer** on Uno Platform (WinUI 3 on Windows, Skia Desktop on Linux/macOS, WebAssembly in the browser, iOS/iPadOS).
+- **Visual DAG Workflow Designer** on Uno Platform (WinUI 3 on Windows, Skia Desktop on Linux/macOS, WebAssembly in the browser).
 - **Cross-platform by construction**: one host, one portable core, no UI-framework lock-in.
 - **High-performance async engine** using Channels and TPL Dataflow.
 - **Safe-by-default pipelines** with non-destructive behavior and Dry Run simulation.
@@ -36,7 +36,7 @@
 
 FileFlow Studio is organized in three main layers:
 
-- **FileFlow.App.Uno**: the single UI host (Uno Platform over WinUI 3 / Skia / WASM / iOS).
+- **FileFlow.App.Uno**: the single UI host (Uno Platform over WinUI 3 / Skia / WASM).
 - **FileFlow.App.Core**: the portable presentation core (ViewModels and UI-agnostic services) shared by the host.
 - **FileFlow.Core**: DAG orchestration engine, validation, telemetry, plugin loading.
 - **FileFlow.Sdk**: core contracts (`IFlowNode`, `FileItemContext`, `IFlowExecutionContext`).
@@ -73,7 +73,7 @@ This project is licensed under **GNU General Public License v3.0 (GPLv3)**. See 
 - **🎨 Lienzo Visual de Diseño de Flujos (DAG)**:
   - Diseñe flujos de trabajo arrastrando y conectando nodos con el **lienzo propio del host Uno Platform** y `CommunityToolkit.Mvvm`.
   - Validación topológica en tiempo real con detección de ciclos, puertos huérfanos y compatibilidad de tipos.
-- **🧭 Multiplataforma de verdad**: un solo host que compila para **Windows, Linux, macOS, Web (WASM) e iOS/iPadOS**, sobre un núcleo portable sin dependencias de framework de UI.
+- **🧭 Multiplataforma de verdad**: un solo host que compila para **Windows, Linux, macOS y Web (WASM)**, sobre un núcleo portable sin dependencias de framework de UI.
 - **⚡ Motor Asíncrono de Alto Rendimiento**:
   - Procesamiento concurrente basado en `System.Threading.Channels` y `TPL Dataflow`.
   - Cancelación cooperativa instantánea (`CancellationToken`) y despacho paralelo multihilo sin bloqueos de interfaz.
@@ -98,7 +98,7 @@ This project is licensed under **GNU General Public License v3.0 (GPLv3)**. See 
 ```
                       ┌─────────────────────────────────┐
                       │ FileFlow.App.Uno (host único)   │
-                      │  WinUI 3 · Skia · WASM · iOS    │
+                      │   WinUI 3 · Skia · WASM         │
                       │  Lienzo DAG · MVVM Toolkit      │
                       └────────────────┬────────────────┘
                                        │ Referencia
@@ -143,7 +143,7 @@ This project is licensed under **GNU General Public License v3.0 (GPLv3)**. See 
 - **SDK**: [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - **Windows**: Windows 10 (1809+) / Windows 11 con el SDK de Windows App.
 - **Linux/macOS**: dependencias de Skia Desktop (X11/Wayland o macOS 12+).
-- **Web/iOS**: workloads `wasm-tools` (y `ios` + Xcode para iPadOS).
+- **Web**: workload `wasm-tools`.
 
 ### Compilación y Ejecución
 
@@ -161,7 +161,7 @@ dotnet test FileFlow.slnx
 # 4. Lanzar la aplicación
 .\run.ps1
 
-# 5. Compilar la matriz multiplataforma (desktop + web; iOS con -IncludeIos en macOS)
+# 5. Compilar la matriz multiplataforma (desktop + wasm)
 .\build-matrix.ps1
 ```
 

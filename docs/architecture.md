@@ -13,7 +13,7 @@ El proyecto se rige por un **desacoplamiento estricto por capas**, asegurando qu
 ```mermaid
 graph TD
     subgraph Capa_Presentacion ["Capa de Presentación (FileFlow.App.Uno)"]
-        UI["Uno Platform UI (WinUI 3 / Skia Desktop / WASM / iOS)"]
+        UI["Uno Platform UI (WinUI 3 / Skia Desktop / WASM)"]
         CV["ValueConverters (LogLevel, Badges, SocketMatrix)"]
         SURF["Superficies Modales (Renamer, Datasets, VFS, Presets)"]
         UI --> CV

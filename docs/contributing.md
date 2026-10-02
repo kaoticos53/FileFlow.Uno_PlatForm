@@ -7,7 +7,7 @@
 ## 1. Principios de Ingeniería y Versiones
 
 1. **Runtime & Lenguaje**:
-   - **Target Framework**: `net10.0` en la capa portable, y el SDK de Uno Platform selecciona el TFM del host por plataforma (`net10.0-windows10.0.19041.0`, `net10.0-desktop`, `net10.0-browserwasm`, `net10.0-ios`).
+   - **Target Framework**: `net10.0` en la capa portable, y el SDK de Uno Platform selecciona el TFM del host por plataforma (`net10.0-windows10.0.19041.0`, `net10.0-desktop` o `net10.0-browserwasm`).
    - **Versión de Lenguaje**: `C# 14` (`<LangVersion>14</LangVersion>`).
    - **Nullable Reference Types**: Activado estrictamente (`<Nullable>enable</Nullable>`). No se permiten advertencias de posibles desreferencias nulas sin mitigar.
    - **Primitivas de Sincronización**: Uso exclusivo de `System.Threading.Lock` en lugar de `object` para bloqueos de exclusión mutua.

@@ -1,6 +1,6 @@
 # Centro de Documentación - FileFlow Studio
 
-Bienvenido al centro de documentación técnica y manuales de usuario de **FileFlow Studio**, la plataforma modular de automatización y procesamiento masivo de archivos desarrollada en **C# 14** y **.NET 10**, con un único host UI de **Uno Platform** que compila para **Windows, Linux, macOS, Web (WASM) e iOS/iPadOS**.
+Bienvenido al centro de documentación técnica y manuales de usuario de **FileFlow Studio**, la plataforma modular de automatización y procesamiento masivo de archivos desarrollada en **C# 14** y **.NET 10**, con un único host UI de **Uno Platform** que compila para **Windows, Linux, macOS y Web (WASM)**.
 
 ---
 
@@ -37,6 +37,5 @@ dotnet test FileFlow.slnx
 Para comprobar que el host compila en las familias soportadas:
 
 ```powershell
-.\build-matrix.ps1            # desktop + web
-.\build-matrix.ps1 -IncludeIos  # añade iOS/iPadOS (requiere macOS + Xcode)
+.\build-matrix.ps1            # desktop + wasm
 ```

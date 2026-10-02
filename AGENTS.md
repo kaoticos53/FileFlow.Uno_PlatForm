@@ -42,7 +42,7 @@ Antes de escanear archivos de código fuente o proponer cambios, **TODO AGENTE D
 | [`.agents/prompts/agent_prompts.md`](file:///.agents/prompts/agent_prompts.md) | Guías y secuencias de prompts especializadas para auditoría, refactorización y extensión. | **Lectura:** Para guiar auditorías por fases o tareas complejas. |
 | [`docs/architecture.md`](file:///docs/architecture.md) y [`docs/ARCHITECTURE_DEEP_DIVE.md`](file:///docs/ARCHITECTURE_DEEP_DIVE.md) | Documentación técnica profunda del diseño del sistema y flujo de datos. | **Lectura:** En tareas que involucren rediseño o extensiones mayores. |
 | [`docs/api_reference.md`](file:///docs/api_reference.md) | Referencia de interfaces públicas del SDK y Core. | **Lectura:** Al consultar contratos de interfaces (`IFlowNode`, `IFlowExecutionContext`, etc.). |
-| [`build-matrix.ps1`](file:///build-matrix.ps1) | Compila el host Uno para cada familia soportada (`-p:FileFlowTarget=windows|desktop|wasm|ios`). | **Lectura:** al preparar una entrega multiplataforma.<br>**Escritura:** al añadir o quitar una plataforma soportada. |
+| [`build-matrix.ps1`](file:///build-matrix.ps1) | Compila el host Uno para cada familia soportada (`-p:FileFlowTarget=windows|desktop|wasm`). | **Lectura:** al preparar una entrega multiplataforma.<br>**Escritura:** al añadir o quitar una plataforma soportada. |
 | [`docs/notas_de_version.md`](file:///docs/notas_de_version.md) | Notas de versión para quien **usa** el producto: lo que ve, separado de lo que sostiene que eso no se rompa, más lo que sigue viéndose así. | **Lectura:** Al cerrar un tramo visible o al preparar una entrega.<br>**Escritura:** Al cerrar el tramo siguiente (apartado nuevo o notas nuevas si cambia la versión). Las cifras salen del walkthrough, no de la memoria. |
 
 ---
@@ -50,7 +50,7 @@ Antes de escanear archivos de código fuente o proponer cambios, **TODO AGENTE D
 ## ⚙️ Principios Técnicos y Estándares de Código
 
 1. **Plataforma y Lenguaje:**
-   - **Target Framework:** `net10.0` en la capa portable; el host Uno (`FileFlow.App.Uno`) elige por plataforma con `FileFlowTarget`: `net10.0-windows10.0.19041.0`, `net10.0-desktop`, `net10.0-browserwasm` o `net10.0-ios`.
+   - **Target Framework:** `net10.0` en la capa portable; el host Uno (`FileFlow.App.Uno`) elige por plataforma con `FileFlowTarget`: `net10.0-windows10.0.19041.0`, `net10.0-desktop` o `net10.0-browserwasm`.
    - **Lenguaje:** `C# 14` (`<LangVersion>14</LangVersion>`).
    - **Tipos de referencia nulos activados:** `<Nullable>enable</Nullable>` de forma estricta.
    - **Sincronización moderna:** Usar `System.Threading.Lock` de .NET 10 en lugar de `object` para bloqueos.
@@ -60,7 +60,7 @@ Antes de escanear archivos de código fuente o proponer cambios, **TODO AGENTE D
    - **`FileFlow.Plugin.*`**: Solo pueden referenciar `FileFlow.Sdk` y sus respectivas librerías de dominio (ej. `SharpCompress`, `ImageSharp`, `MetadataExtractor`). Nunca referenciar `FileFlow.Core`, `FileFlow.App.Core` ni `FileFlow.App.Uno`.
    - **`FileFlow.Core`**: Orquestador del motor DAG, carga dinámica de plugins (`AssemblyLoadContext`), ejecución en canales (`System.Threading.Channels` / `TPL Dataflow`) y serialización polimórfica.
    - **`FileFlow.App.Core`**: Capa de presentación **portable** (ViewModels y servicios sin framework de UI).
-   - **`FileFlow.App.Uno`**: El **único** host UI (Uno Platform sobre WinUI 3 / Skia / WASM / iOS) con `CommunityToolkit.Mvvm`.
+   - **`FileFlow.App.Uno`**: El **único** host UI (Uno Platform sobre WinUI 3 / Skia / WASM) con `CommunityToolkit.Mvvm`.
 
 3. **I/O Asíncrono y Rendimiento en .NET 10:**
    - Métodos I/O de disco 100% asíncronos (`ValueTask` / `Task`) con propagación obligatoria de `CancellationToken`.
@@ -114,7 +114,7 @@ Para validar cualquier cambio, el agente debe ejecutar las suites de prueba corr
 .\run.ps1                              # compila y lanza el host Uno
 .\run-fast.ps1                         # lanza sin compilar (.\run.ps1 -NoBuild)
 
-# Matriz de compilación multiplataforma (desktop + web; iOS con -IncludeIos en macOS)
+# Matriz de compilación multiplataforma (desktop + wasm)
 .\build-matrix.ps1
 
 # Sonda de autorrevisión del host Uno (mide el lienzo con puntero inyectado y espera el veredicto:

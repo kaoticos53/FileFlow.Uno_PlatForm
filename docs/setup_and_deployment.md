@@ -9,7 +9,6 @@ Antes de compilar o desplegar **FileFlow Studio**, asegúrate de que el entorno 
 - **SDK de .NET**: [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (versión `10.0.100` o superior).
 - **Cargas de trabajo opcionales**:
   - `wasm-tools` para el target Web (`net10.0-browserwasm`).
-  - `ios` + Xcode para el target iPadOS/iPhone (`net10.0-ios`, requiere macOS).
 - **Herramientas de Línea de Comandos**: PowerShell 7+ (o `bash` en Linux/macOS).
 - **IDE Recomendado**: Visual Studio 2022 (v17.13+, con carga de trabajo *.NET Multi-platform App UI development*), JetBrains Rider 2024.3+ o VS Code con extensión *C# Dev Kit*.
 
@@ -64,8 +63,7 @@ dotnet run --project FileFlow.App.Uno/FileFlow.App.Uno.csproj -c Debug
 
 Para compilar cada familia de plataformas:
 ```powershell
-.\build-matrix.ps1                       # desktop + web
-.\build-matrix.ps1 -IncludeIos           # añade iOS/iPadOS (macOS + Xcode)
+.\build-matrix.ps1                       # desktop + wasm
 ```
 
 ---
@@ -89,7 +87,7 @@ dotnet test FileFlow.slnx --collect:"XPlat Code Coverage"
 
 ## 5. Empaquetado y Distribución
 
-El host Uno selecciona la plataforma con `-p:FileFlowTarget=<windows|desktop|wasm|ios>`.
+El host Uno selecciona la plataforma con `-p:FileFlowTarget=<windows|desktop|wasm>`.
 
 ### 5.1. Publicación Autónoma (Windows, WinUI 3)
 ```powershell
@@ -126,7 +124,7 @@ dotnet publish FileFlow.App.Uno/FileFlow.App.Uno.csproj `
 
 ## 6. Pipeline de Integración Continua (CI/CD)
 
-El flujo real vive en [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): valida el build y la suite en Windows, los instaladores en Linux y una **matriz de compilación multiplataforma** (desktop, wasm, ios). Esquema:
+El flujo real vive en [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): valida el build y la suite en Windows, los instaladores en Linux y una **matriz de compilación multiplataforma** (desktop, wasm). Esquema:
 
 ```yaml
 name: FileFlow Studio CI/CD
@@ -156,7 +154,6 @@ jobs:
         include:
           - { os: ubuntu-latest, target: desktop }
           - { os: ubuntu-latest, target: wasm }
-          - { os: macos-latest,  target: ios }
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4

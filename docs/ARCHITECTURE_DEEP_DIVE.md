@@ -7,7 +7,7 @@ Este documento describe de forma exhaustiva el funcionamiento interno de **FileF
 ## 🎯 Nivel 1: Conceptos Básicos y Visión General (Principiante)
 
 ### ¿Qué es FileFlow Studio?
-FileFlow Studio es una plataforma visual basada en **nodos interconectados** para automatizar el procesamiento, conversión, organización y análisis masivo de archivos y carpetas de forma multiplataforma (Windows, Linux, macOS, Web WASM, iOS).
+FileFlow Studio es una plataforma visual basada en **nodos interconectados** para automatizar el procesamiento, conversión, organización y análisis masivo de archivos y carpetas de forma multiplataforma (Windows, Linux, macOS, Web WASM).
 
 ```
 [Carpeta Origen] ───(Salida)───► (Entrada)─── [Optimizador de Imágenes] ───(Salida)───► (Entrada)─── [Carpeta Destino]
@@ -30,7 +30,7 @@ FileFlow Studio se estructura en 4 capas estrictamente desacopladas:
 ```
 ┌────────────────────────────────────────────────────────┐
 │                   FileFlow.App.Uno                     │
-│    (Host UI Único: WinUI 3 / Skia Desktop / WASM / iOS)│
+│      (Host UI Único: WinUI 3 / Skia Desktop / WASM)    │
 └──────────────────────────┬─────────────────────────────┘
                            │
 ┌──────────────────────────▼─────────────────────────────┐
@@ -98,7 +98,7 @@ El motor de ejecución procesa los elementos mediante tuberías en paralelo:
 
 ### 2. Multiplataforma sin código duplicado
 - Un único host (`FileFlow.App.Uno`) sobre un núcleo portable (`FileFlow.App.Core`): los ViewModels y servicios no conocen el framework de UI.
-- El SDK selecciona el TFM por familia con `-p:FileFlowTarget=<windows|desktop|wasm|ios>`, de modo que la misma base compila para Windows (WinUI 3), Linux/macOS (Skia), navegador (WASM) e iOS/iPadOS.
+- El SDK selecciona el TFM por familia con `-p:FileFlowTarget=<windows|desktop|wasm>`, de modo que la misma base compila para Windows (WinUI 3), Linux/macOS (Skia) y navegador (WASM).
 - La detección de sistema operativo y las APIs nativas se encapsulan en `FileFlow.Core.Platform` (`IOsPlatformService`).
 
 ### 3. Localización Dinámica Multilingüe Sin Reinicio (`LocalizationManager`)

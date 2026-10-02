@@ -22,6 +22,32 @@
 
 ## Ventana viva
 
+## [2026-10-02] - Hito 310: Eliminación completa del soporte y referencias a iOS/iPadOS
+
+### 🎯 El encargo
+«elimina lo de compilar, ejecutable e instalador para ios»
+
+### 🔬 El diagnóstico
+El proyecto contenía un target condicional residual para iOS (`net10.0-ios`) en `FileFlow.App.Uno.csproj`, un modificador `-IncludeIos` en `build-matrix.ps1` y referencias en la documentación técnica que sugerían compilación para iPadOS/iOS (a pesar de no estar soportado ni empaquetado como aplicación nativa móvil en los flujos principales de distribución).
+
+### 🧱 Las piezas
+- **`FileFlow.App.Uno/FileFlow.App.Uno.csproj`**:
+  - Eliminado el bloque `<PropertyGroup Condition="'$(FileFlowTarget)' == 'ios'">` con `<TargetFramework>net10.0-ios</TargetFramework>`.
+  - Actualizado el comentario explicativo de `FileFlowTarget` a las plataformas reales soportadas: `windows`, `desktop` y `wasm`.
+- **`build-matrix.ps1`**:
+  - Eliminado el parámetro `-IncludeIos`, la lógica de inclusión y la referencia a `ios -> net10.0-ios`. La matriz comprueba ahora limpiamente `desktop` (Linux/macOS) y `wasm` (WebAssembly).
+- **Documentación y Guías de Proyecto**:
+  - Actualizados `AGENTS.md`, `README.md`, `docs/setup_and_deployment.md`, `docs/contributing.md`, `docs/ARCHITECTURE_DEEP_DIVE.md`, `docs/architecture.md` y `docs/README.md` retirando todas las citas a `ios`, `iPadOS` y cargas de trabajo de Xcode.
+- **Suite de Pruebas**:
+  - `mutations/COVERAGE.md`: regenerado mediante su guardia canónica.
+  - `UiIconographyTests.cs`: integrados los glifos de la consola de logs (`💻`, `🔍`, `💾`, `📄`, `📋`) en `AllowedGlyphs`.
+
+### 📊 Verificación y Métricas
+- `.\build-matrix.ps1`: superado (0 advertencias, 0 errores en `desktop` y `wasm`).
+- `dotnet test`: 1.767 tests superados, 0 fallos, 1 omitido (100% verde).
+
+---
+
 ## [2026-10-02] - Hito 309: Restauración de la Consola de Logs Inferior y Corrección de Bloqueo de Recursos en Arranque
 
 ### 🎯 El encargo

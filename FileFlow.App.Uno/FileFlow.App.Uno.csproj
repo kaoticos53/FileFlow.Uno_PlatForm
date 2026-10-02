@@ -1,7 +1,7 @@
 <Project Sdk="Uno.Sdk/6.7.30">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <!-- Plataforma de destino, EXPLÍCITA: FileFlowTarget=windows|desktop|wasm|ios. Por defecto, Windows
+    <!-- Plataforma de destino, EXPLÍCITA: FileFlowTarget=windows|desktop|wasm. Por defecto, Windows
          nativo en Windows_NT y Skia Desktop (Linux/macOS) en el resto. La selección NO depende de que el SDK
          haya dejado TargetFramework vacío (lo daba por sentado y el TFM se quedaba en net10.0). -->
     <FileFlowTarget Condition="'$(FileFlowTarget)' == '' and '$(OS)' == 'Windows_NT'">windows</FileFlowTarget>
@@ -27,10 +27,6 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(FileFlowTarget)' == 'wasm'">
     <TargetFramework>net10.0-browserwasm</TargetFramework>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(FileFlowTarget)' == 'ios'">
-    <TargetFramework>net10.0-ios</TargetFramework>
-    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
   </PropertyGroup>
 
   <!-- =================================================================== -->

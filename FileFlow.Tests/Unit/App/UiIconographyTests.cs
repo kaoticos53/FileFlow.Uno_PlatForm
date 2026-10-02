@@ -44,6 +44,11 @@ public class UiIconographyTests
         "⬇", // Descargar / instalar
         "🔗", // Enlace / webhook
         "🎨", // Personalizador de temas
+        "💻", // Consola de logs / depuración
+        "🔍", // Búsqueda de logs
+        "💾", // Exportar logs
+        "📄", // Logs de archivo
+        "📋", // Copiar logs
     };
 
     private static readonly Regex KindLiteralRegex = new(
