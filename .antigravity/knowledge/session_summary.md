@@ -13,6 +13,19 @@ Este documento se actualiza al finalizar cada sesión de trabajo para consolidar
 
 ## 0. Hito más reciente
 
+- **311. Corrección de Compilación y Empaquetado Flatpak en Release (2026-10-02)**:
+  - **El encargo**: «en github actions release falla y de error en el paso compilar y empaquetar bundle flatpak.»
+  - **🔬 Diagnóstico**: En `release.yml`, `flatpak-builder` intentaba ejecutar `dotnet publish` dentro del contenedor sandbox de Flatpak sin acceso a la red ni a NuGet, provocando el fallo `error MSB4236: The SDK 'Uno.Sdk/6.7.30' specified could not be found`.
+  - **🧱 Acciones**:
+    - Manifiesto Flatpak (`com.fileflowstudio.FileFlow.yml`): configurado para recibir y empaquetar directamente el payload de binarios pre-compilados en modo sandbox (`payload/`).
+    - `installer/linux/flatpak/build-flatpak.sh`: soporte para aceptar la ruta del payload de publicación (`SOURCE_PAYLOAD`). Si ya existe (ej. `/tmp/fileflow-payload`), la incorpora al staging; si no, ejecuta `dotnet publish` de forma autónoma en el host.
+    - `.github/workflows/release.yml`: actualizado el paso de Flatpak para pasar `/tmp/fileflow-payload` y eliminada la dependencia innecesaria de `org.freedesktop.Sdk.Extension.dotnet10`.
+    - `package-linux.sh` y `installer/build-linux-installer.ps1`: actualizados para propagar el payload pre-compilado.
+  - **📊 Validación**:
+    - `dotnet test`: **1.767 pruebas superadas al 100%**.
+    - `.\build-matrix.ps1`: **0 errores**.
+    - `.\installer\build-linux-installer.ps1`: **ejecución limpia con código de salida 0**.
+
 - **310. Eliminación completa del soporte y referencias a iOS/iPadOS (2026-10-02)**:
   - **El encargo**: «elimina lo de compilar, ejecutable e instalador para ios».
   - **🔬 Diagnóstico**: Se detectaron restos condicionales para iOS (`net10.0-ios`) en `FileFlow.App.Uno.csproj`, parámetros obsoletos (`-IncludeIos`) en `build-matrix.ps1`, y referencias desactualizadas en manuales y documentación de desarrollo.

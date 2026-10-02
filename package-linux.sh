@@ -129,7 +129,7 @@ rm -rf "${PORTABLE_DIR}" "${APP_DIR}"
 # 5. Generar Paquete Flatpak (.flatpak) si flatpak-builder está presente
 if command -v flatpak-builder &> /dev/null; then
     echo -e "\n\033[0;33m[5/5] Generando bundle autónomo Flatpak (.flatpak)...\033[0m"
-    bash "${SCRIPT_DIR}/installer/linux/flatpak/build-flatpak.sh" "${VERSION}" "${DIST_DIR}/FileFlow-${VERSION}-x86_64.flatpak" || echo -e "\033[0;33m[ADVERTENCIA] No se pudo generar el Flatpak automáticamente.\033[0m"
+    bash "${SCRIPT_DIR}/installer/linux/flatpak/build-flatpak.sh" "${VERSION}" "${DIST_DIR}/FileFlow-${VERSION}-x86_64.flatpak" "${APP_DIR}" || echo -e "\033[0;33m[ADVERTENCIA] No se pudo generar el Flatpak automáticamente.\033[0m"
 else
     echo -e "\n\033[0;33m[5/5] 'flatpak-builder' no detectado: omitiendo generación de .flatpak (usa: sudo apt install flatpak-builder)\033[0m"
 fi

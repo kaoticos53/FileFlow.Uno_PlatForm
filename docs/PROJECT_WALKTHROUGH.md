@@ -22,6 +22,37 @@
 
 ## Ventana viva
 
+## [2026-10-02] - Hito 311: Corrección de Compilación y Empaquetado Flatpak en GitHub Actions Release
+
+### 🎯 El encargo
+«en github actions release falla y de error en el paso compilar y empaquetar bundle flatpak.»
+
+### 🔬 El diagnóstico
+Durante el paso de empaquetado Flatpak en el workflow de CI/CD (`release.yml`), `flatpak-builder` ejecutaba `dotnet publish` dentro del contenedor sandbox de Flatpak. Debido a que el entorno de compilación de Flatpak está aislado sin acceso a internet por defecto:
+1. El resolvedor de SDKs de MSBuild (`Microsoft.DotNet.MSBuildWorkloadSdkResolver`) no podía alcanzar NuGet para descargar el SDK de Uno (`Uno.Sdk/6.7.30`).
+2. La extensión `org.freedesktop.Sdk.Extension.dotnet10` dentro de Flatpak arrojaba advertencias de workloads e impedía resolver el SDK de Uno.
+3. El compilador fallaba con `error MSB4236: The SDK 'Uno.Sdk/6.7.30' specified could not be found`.
+
+### 🧱 Las piezas
+- **`installer/linux/flatpak/com.fileflowstudio.FileFlow.yml`**:
+  - Modificado el manifiesto de Flatpak para empaquetar de forma directa y determinista el payload de binarios pre-publicados (`payload/`) en lugar de invocar `dotnet publish` dentro del sandbox aislado.
+  - Eliminada la dependencia innecesaria de `org.freedesktop.Sdk.Extension.dotnet10`.
+- **`installer/linux/flatpak/build-flatpak.sh`**:
+  - Añadido soporte para recibir la ruta del payload (`SOURCE_PAYLOAD`). Si se suministra un directorio de publicación existente (ej. `/tmp/fileflow-payload`), lo incorpora directamente en la fase de staging (`/tmp/fileflow-flatpak-stage`); si no se proporciona, ejecuta `dotnet publish` en el host fuera del sandbox de Flatpak.
+  - Copia automática de `FileFlow.png`, `.desktop` y metainfo a la carpeta de staging.
+- **`.github/workflows/release.yml`**:
+  - Actualizado el paso de Flatpak para invocar `build-flatpak.sh` pasando el payload ya generado en el paso previo (`/tmp/fileflow-payload`).
+  - Retirada la instalación innecesaria de `org.freedesktop.Sdk.Extension.dotnet10`.
+- **`package-linux.sh` y `installer/build-linux-installer.ps1`**:
+  - Actualizados para propagar el directorio de publicación local al script de Flatpak.
+
+### 📊 Verificación y Métricas
+- `dotnet test`: 1.767 tests superados (100% verde).
+- `.\build-matrix.ps1`: 0 errores en todas las plataformas soportadas.
+- `.\installer\build-linux-installer.ps1`: completado con éxito (código de salida 0). Generados `.tar.gz`, árbol Debian y AppDir en `installer/output/`.
+
+---
+
 ## [2026-10-02] - Hito 310: Eliminación completa del soporte y referencias a iOS/iPadOS
 
 ### 🎯 El encargo

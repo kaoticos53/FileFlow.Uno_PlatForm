@@ -261,7 +261,7 @@ if ($isNativeLinux) {
     if (Get-Command "flatpak-builder" -ErrorAction SilentlyContinue) {
         Write-Host "  -> Compilando paquete .flatpak nativamente..." -ForegroundColor DarkGray
         $flatpakScript = Join-Path $scriptDir "linux/flatpak/build-flatpak.sh"
-        & bash "$flatpakScript" "$Version" "$flatpakOutFile" 2>$null
+        & bash "$flatpakScript" "$Version" "$flatpakOutFile" "$appPayloadDir" 2>$null
         if (Test-Path $flatpakOutFile) {
             $flatpakSize = [math]::Round(((Get-Item $flatpakOutFile).Length / 1MB), 2)
             Write-Host "  [OK] Paquete Flatpak generado: FileFlow-v${Version}-x86_64.flatpak ($flatpakSize MB)" -ForegroundColor Green
@@ -284,11 +284,12 @@ if ($isNativeLinux) {
     # Compilación de Flatpak (.flatpak) si flatpak-builder está instalado en WSL
     $wslFlatpakScript = "/mnt/" + (Join-Path $scriptDir "linux\flatpak\build-flatpak.sh").Substring(0,1).ToLower() + (Join-Path $scriptDir "linux\flatpak\build-flatpak.sh").Substring(2).Replace('\', '/')
     $wslFlatpakOut = "/mnt/" + $flatpakOutFile.Substring(0,1).ToLower() + $flatpakOutFile.Substring(2).Replace('\', '/')
+    $wslAppPayloadDir = "/mnt/" + $appPayloadDir.Substring(0,1).ToLower() + $appPayloadDir.Substring(2).Replace('\', '/')
     
     $checkFlatpak = wsl which flatpak-builder 2>$null
     if (-not [string]::IsNullOrWhiteSpace($checkFlatpak)) {
         Write-Host "  -> Compilando paquete .flatpak vía subsistema Linux (WSL)..." -ForegroundColor DarkGray
-        & wsl bash "$wslFlatpakScript" "$Version" "$wslFlatpakOut" 2>$null
+        & wsl bash "$wslFlatpakScript" "$Version" "$wslFlatpakOut" "$wslAppPayloadDir" 2>$null
         if (Test-Path $flatpakOutFile) {
             $flatpakSize = [math]::Round(((Get-Item $flatpakOutFile).Length / 1MB), 2)
             Write-Host "  [OK] Paquete Flatpak generado: FileFlow-v${Version}-x86_64.flatpak ($flatpakSize MB)" -ForegroundColor Green

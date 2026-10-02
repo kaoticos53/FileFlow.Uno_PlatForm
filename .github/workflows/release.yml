@@ -175,7 +175,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libfuse2 file curl wget tar flatpak flatpak-builder
           sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          sudo flatpak install -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08 org.freedesktop.Sdk.Extension.dotnet10//24.08
+          sudo flatpak install -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
 
       - name: 🚀 Compilar y empaquetar Ejecutable AppImage (.AppImage)
         shell: bash
@@ -217,7 +217,7 @@ jobs:
         shell: bash
         run: |
           VER="${{ needs.resolve-version.outputs.clean_version }}"
-          bash installer/linux/flatpak/build-flatpak.sh "$VER" "${GITHUB_WORKSPACE}/installer/output/FileFlow-v${VER}-x86_64.flatpak"
+          bash installer/linux/flatpak/build-flatpak.sh "$VER" "${GITHUB_WORKSPACE}/installer/output/FileFlow-v${VER}-x86_64.flatpak" "/tmp/fileflow-payload"
 
       - name: 📤 Subir artefactos de Linux (AppImage y Flatpak)
         uses: actions/upload-artifact@v4
