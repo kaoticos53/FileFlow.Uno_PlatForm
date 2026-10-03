@@ -6,7 +6,7 @@
 
 Mutaciones declaradas: 110
 Subsistemas del producto con alguna mutación: 14 de 16
-Guardias que auditan el repositorio con mutación que las muerda: 17 de 37
+Guardias que auditan el repositorio con mutación que las muerda: 17 de 38
 
 ## Qué declara cada mutación
 
@@ -131,7 +131,7 @@ defecto declarado demuestra que sus pruebas muerdan. Es la lista de trabajo, no 
 - `FileFlow.Plugin.Scripting`
 - `FileFlow.Plugin.Subflows`
 
-## Guardias del repositorio sin ninguna mutación que las muerda (20 de 37)
+## Guardias del repositorio sin ninguna mutación que las muerda (21 de 38)
 
 Las guardias que auditan el árbol (usan `SourceTree`, `TestRepositoryLocator` o `TestSuiteIndex`) y no
 aparecen como testigo de ninguna mutación: están escritas, y nadie ha demostrado que muerdan.
@@ -151,6 +151,7 @@ aparecen como testigo de ninguna mutación: están escritas, y nadie ha demostra
 - `FileFlow.Tests/Unit/App/UnoLogPanelGuardTests.cs`
 - `FileFlow.Tests/Unit/App/UnoNodeDialogProbeGuardTests.cs`
 - `FileFlow.Tests/Unit/App/UnoToolboxPanelGuardTests.cs`
+- `FileFlow.Tests/Unit/App/UnoWheelWiringGuardTests.cs`
 - `FileFlow.Tests/Unit/Core/FlowFormatSerializationGuardTests.cs`
 - `FileFlow.Tests/Unit/Core/WorkflowFormatShapeTests.cs`
 - `FileFlow.Tests/Unit/Plugins/NodeArchitectureGuardTests.cs`

@@ -172,6 +172,7 @@
 
     <!-- ── 2: Lista virtualizada de registros ── -->
     <ListView x:Name="LogListView" Grid.Row="2"
+              AutomationProperties.AutomationId="LogScrollSurface"
               SelectionMode="None"
               IsItemClickEnabled="True"
               ItemClick="OnLogItemClicked"

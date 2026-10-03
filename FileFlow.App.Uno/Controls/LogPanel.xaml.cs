@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using FileFlow.App.ViewModels;
+using FileFlow.App.Uno.Platform;
 using FileFlow.Sdk.Localization;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -18,6 +19,9 @@ public sealed partial class LogPanel : UserControl
     public event EventHandler? CollapseRequested;
 
     public ObservableCollection<LogItemViewModel> DisplayedItems => _displayedItems;
+
+    /// <summary>La superficie sobre la que el panel resuelve la rueda (la sonda del sondeo la mide).</summary>
+    internal UIElement WheelSurfaceForProbe => LogListView;
 
     public LogViewModel? Vm
     {
@@ -45,6 +49,7 @@ public sealed partial class LogPanel : UserControl
     public LogPanel()
     {
         InitializeComponent();
+        ContentDialogWheelScroller.EnableScrollSurface(LogListView);
         LogListView.ItemsSource = _displayedItems;
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;

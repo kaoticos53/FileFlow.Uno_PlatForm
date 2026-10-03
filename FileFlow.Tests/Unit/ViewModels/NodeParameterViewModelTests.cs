@@ -310,15 +310,3 @@ public class NodeParameterViewModelTests : IDisposable
     /// </summary>
     private static void EnsureClipboardHost() => HostUiTestHelper.RunOnUI(static () => { });
 }
-    }
-
-    /// <summary>
-    /// Arranca la sesión headless de forma explícita antes de copiar.
-    ///
-    /// El portapapeles se publica a través del <c>Dispatcher</c> de la aplicación, así que un test que copie
-    /// necesita la aplicación en marcha: sin ella, el propio despacho lanza y el aviso nunca se enciende por un
-    /// motivo que no tiene nada que ver con lo que se está midiendo. Depender de que otra clase haya arrancado la
-    /// sesión antes haría que esta prueba pasara o fallara según el orden de ejecución.
-    /// </summary>
-    private static void EnsureClipboardHost() => HostUiTestHelper.RunOnUI(static () => { });
-}

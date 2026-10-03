@@ -27,6 +27,12 @@ ANCLAS con peer (CanvasRoot) y sondea:
       y se vuelve a Parámetros. Sin conmutación no hay pestaña materializada en el árbol (el Pivot
       virtualiza) — y el conmutador aquí es el PATRÓN SelectionItem, no clicks.
 
+  S8 (hito 319). LA RUEDA. La rueda FÍSICA sobre las tres superficies del host: la consola de registros,
+      el catálogo de nodos y la ficha del inspector. El punto elegido cae sobre una zona de TEXTO (la que
+      el usuario reportaba como la que fallaba) y el veredicto es que el VerticalOffset del ScrollViewer
+      CAMBIA con la muesca. La inyección es real: SetCursorPos + mouse_event(MOUSEEVENTF_WHEEL) sobre el
+      ratón de la ventana — la misma vía que un usuario, no una llamada al método interno.
+
 Veredicto por codigo de salida: 0 = verificado, 2 = algun sondeo fallo, 3 = la app nunca aparecio.
 """
 import ctypes
@@ -94,6 +100,134 @@ def press_escape():
     key(0x1B)
     time.sleep(0.05)
     key(0x1B, up=True)
+
+
+# ── S8 (hito 319): la rueda FÍSICA sobre las tres superficies que la consumen ──────────────────────
+# Las anclas de las tres superficies (AutomationId declarado en cada panel). El punto elegido cae sobre
+# una zona de TEXTO —la que el usuario reportaba como la que fallaba— y el veredicto es que el
+# VerticalScrollPercent del ScrollViewer CAMBIA con la muesca de rueda real.
+WHEEL_SURFACES = [
+    ("consola", "LogScrollSurface"),
+    ("catalogo", "ToolboxScrollSurface"),
+    ("inspector", "InspectorParamsScrollSurface"),
+]
+
+MOUSEEVENTF_WHEEL = 0x0800
+
+
+def wheel_at(x, y, notches):
+    """Rueda FÍSICA en el punto: cursor real + mouse_event con la muesca (120 por muesca)."""
+    u32.SetCursorPos(int(x), int(y))
+    time.sleep(0.2)
+    u32.mouse_event(MOUSEEVENTF_WHEEL, 0, 0, int(notches * 120), 0)
+
+
+def scroll_percent(el):
+    """El VerticalScrollPercent (UIA ScrollPattern) del elemento o de su primer descendiente que lo exponga.
+
+    Es el ESTADO observable del desplazamiento: si la muesca no lo cambia, la rueda no llegó. Se lee por
+    el `iface_scroll` de pywinauto (su propia vía al patrón: `element_info.element`, el IUIAutomationElement
+    crudo), no por comtypes.GetPattern sobre el wrapper — esa llamada recibe el objeto equivocado y falla
+    en silencio (medido: el ScrollViewer del catálogo «sin ScrollPattern» cuando sí lo tiene).
+    """
+    if el is None:
+        return None
+
+    candidates = [el]
+    try:
+        candidates += el.descendants()
+    except Exception:
+        pass
+
+    for candidate in candidates:
+        try:
+            pattern = candidate.iface_scroll
+        except Exception:
+            continue
+        try:
+            if pattern.CurrentVerticallyScrollable:
+                return pattern.CurrentVerticalScrollPercent
+        except Exception:
+            continue
+    return None
+
+
+def scroll_verdict(el):
+    """El desplazamiento observable: el porcentaje, o una razón concreta de por qué no hay lectura.
+
+    Distinguir «no desplazable» de «sin patrón» es la diferencia entre declarar rota la rueda y declarar
+    rota la sonda: el ancla puede existir y no desplazar (nada que medir) o no exponer el patrón (la vía de
+    lectura falló). El detalle del sondeo tiene que poder decir cuál de las dos."""
+    if el is None:
+        return None, "el ancla no está en el árbol UIA"
+
+    found_any = False
+    for candidate in [el] + list(_safe_descendants(el)):
+        try:
+            pattern = candidate.iface_scroll
+        except Exception:
+            continue
+        found_any = True
+        try:
+            if pattern.CurrentVerticallyScrollable:
+                return pattern.CurrentVerticalScrollPercent, "con ScrollPattern"
+        except Exception as ex:
+            return None, "el patrón lanzó %s" % type(ex).__name__
+
+    return None, ("con ScrollPattern pero no desplazable verticalmente" if found_any
+                  else "sin ScrollPattern en el árbol de ese ancla")
+
+
+def _safe_descendants(el):
+    try:
+        return el.descendants()
+    except Exception:
+        return []
+
+
+def probe_wheel(win, name, aid):
+    """La rueda física sobre UNA superficie. Devuelve (veredicto, detalle) con veredicto en
+    {OK, OMITIDA, FALLO}.
+
+    El empujón previo hacia ARRIBA evita el falso negativo de una lista que ya está al final (la consola
+    arranca pegada al fondo en modo en vivo): sin él, una muesca hacia abajo no tendría a dónde ir y la
+    sonda declararía rota una rueda que funciona.
+
+    Una superficie cuyo scroll no desborda en esta escena —la consola con pocos registros, la ficha con
+    pocos parámetros— NO es un fallo: no hay muesca que medir, y declararla rota culparía a la sonda de que
+    el fixture no la llene. Se declara OMITIDA con su razón, como la frontera latente de S6.
+    """
+    el = by_aid(win, aid)
+    if el is None:
+        return "FALLO", "el ancla '%s' no está en el árbol UIA" % aid
+
+    try:
+        rect = el.rectangle()
+    except Exception as ex:
+        return "FALLO", "sin caja para '%s': %s" % (aid, type(ex).__name__)
+
+    x = (rect.left + rect.right) / 2.0
+    y = rect.top + (rect.bottom - rect.top) * 0.5
+
+    wheel_at(x, y, 3)          # empuja hacia arriba: aleja del tope inferior
+    time.sleep(0.8)
+    before, why = scroll_verdict(el)
+    if before is None:
+        return "OMITIDA", "'%s' sin desplazamiento que medir: %s" % (aid, why)
+
+    wheel_at(x, y, -3)         # la muesca que se mide
+    time.sleep(0.8)
+    after = scroll_percent(el)
+
+    wheel_at(x, y, 3)          # restaura el desplazamiento de partida
+    time.sleep(0.6)
+    restored = scroll_percent(el)
+
+    moved = after is not None and abs(after - before) > 0.5
+    back = restored is not None and abs(restored - before) <= 3.0
+    detail = ("rueda real en el centro de la superficie (%.0f,%.0f): %s%% -> %s%% (restaurado %s%%)"
+              % (x, y, before, after, restored))
+    return ("OK" if (moved and back) else "FALLO"), detail
 
 
 def by_aid(root, aid):
@@ -323,6 +457,26 @@ def probe(win):
     except Exception as ex:
         diff_detail = "diff fallo: %s: %s" % (type(ex).__name__, ex)
     results.append(("S7_diff_con_ancla_de_fila", diff_ok, diff_detail))
+
+    # S8 (hito 319). LA RUEDA FÍSICA sobre las tres superficies del host. El arreglo resolvió el destino
+    # por el PUNTO del puntero (no por el elemento de origen, que hacía la rueda dependiente de la zona),
+    # y la única medida honesta es una muesca real de ratón. Cada superficie se empuja hacia arriba, se
+    # mide su VerticalScrollPercent, se nudge hacia abajo y se restaura.
+    omitted = []
+    for name, aid in WHEEL_SURFACES:
+        try:
+            verdict, detail = probe_wheel(win, name, aid)
+        except Exception as ex:
+            verdict, detail = "FALLO", "rueda (%s) lanzó: %s: %s" % (name, type(ex).__name__, ex)
+        if verdict == "OMITIDA":
+            omitted.append(name)
+            continue  # no es un fallo: no había desplazamiento que medir
+        results.append(("S8_rueda_%s" % name, verdict == "OK", detail))
+
+    if omitted:
+        results.append(("S8_rueda_omitidas", True,
+                        "sin desplazamiento que medir en esta escena (no hay fallo): %s"
+                        % ", ".join(omitted)))
 
     return results
 

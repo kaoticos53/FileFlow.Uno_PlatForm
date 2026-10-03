@@ -50,6 +50,8 @@ public class UnoLogPanelGuardTests
         code.Should().Contain("SetFilter(\"Debug\")");
         code.Should().Contain("CollapseRequested");
         code.Should().Contain("ToggleExpanded");
+        code.Should().Contain("ContentDialogWheelScroller.EnableScrollSurface(LogListView)",
+            "la consola debe recuperar la rueda incluso cuando la lista o sus elementos consumen el evento");
     }
 
     [Fact]

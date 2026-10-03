@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using FileFlow.App.Uno.Platform;
 using FileFlow.App.ViewModels;
 using FileFlow.Sdk.Localization;
 using Microsoft.UI.Xaml;
@@ -55,6 +56,11 @@ public sealed partial class MainMenuDrawer : UserControl
     public MainMenuDrawer()
     {
         InitializeComponent();
+
+        // El cajón del menú es una superficie desplazable más: la rueda entra por la MISMA puerta única del
+        // host y el destino sale del punto del puntero (su ScrollViewer central).
+        ContentDialogWheelScroller.EnableScrollSurface(this);
+
         RefreshLocalization();
     }
 

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text;
 using FileFlow.App.Services;
 using FileFlow.App.Themes;
+using FileFlow.App.Uno.Platform;
 using FileFlow.App.ViewModels;
 using FileFlow.Sdk.Localization;
 using FileFlow.Sdk.Services;
@@ -43,6 +44,11 @@ public sealed partial class SettingsPanel : UserControl
     public SettingsPanel()
     {
         InitializeComponent();
+
+        // La rueda entra por la MISMA superficie única del host: el destino (la sección visible, cada una con
+        // su ScrollViewer) lo resuelve el helper por el punto del puntero, así que da igual qué sección esté
+        // abierta ni sobre qué control caiga el cursor.
+        ContentDialogWheelScroller.EnableScrollSurface(this);
 
         _fileDialog = App.Services.GetRequiredService<IFileDialogService>();
 

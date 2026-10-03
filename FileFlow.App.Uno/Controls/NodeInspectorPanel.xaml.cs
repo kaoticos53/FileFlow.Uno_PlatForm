@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using FileFlow.App.ViewModels;
+using FileFlow.App.Uno.Platform;
 using FileFlow.Sdk;
 using FileFlow.Sdk.Localization;
 using Microsoft.UI.Xaml;
@@ -253,6 +254,9 @@ public sealed partial class NodeInspectorPanel : UserControl
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             Content = _paramsHost
         };
+        // Ancla UIA de la superficie de la pestaña de parámetros: el observador externo mide la rueda de la
+        // ficha sobre su scroll REAL (el anidado dentro del Grid), que es el que desplaza sus filas.
+        AutomationProperties.SetAutomationId(paramsScroll, "InspectorParamsScrollSurface");
         Grid.SetRow(paramsScroll, 4);
         paramsGrid.Children.Add(_descriptionText);
         paramsGrid.Children.Add(_actionsHeader);
@@ -372,6 +376,10 @@ public sealed partial class NodeInspectorPanel : UserControl
             BorderThickness = new Thickness(1, 0, 0, 0),
             Child = _root
         };
+        // La rueda se engancha UNA vez a la ficha entera: el destino lo resuelve el helper por el punto del
+        // puntero (el ScrollViewer que lo contiene), así que da igual qué pestaña esté visible, que el cursor
+        // caiga sobre un TextBox, un desplegable o un texto, o que el evento venga ya marcado por un hijo.
+        ContentDialogWheelScroller.EnableScrollSurface(this);
         Padding = new Thickness(16, 14, 16, 14);
 
         ApplyLocalization();
@@ -436,10 +444,6 @@ public sealed partial class NodeInspectorPanel : UserControl
         RefreshHeaderTexts();
     }
 
-    /// <summary>
-    /// Conmuta la sección visible de la ficha: el clic de la tira y la sonda entran por aquí. El cuerpo
-    /// del diff se repinta al mostrarlo (lo hacía el <c>SelectionChanged</c> del Pivot).
-    /// </summary>
     internal void ShowTab(int index)
     {
         if (index < 0 || index >= _tabPanes.Length || _tabPanes[index] is null)
@@ -530,14 +534,16 @@ public sealed partial class NodeInspectorPanel : UserControl
     /// </summary>
     private ScrollViewer NamedPane(string name, UIElement content)
     {
-        var pane = new ScrollViewer
+        // Sin enganche propio: la rueda de la ficha se captura en la raíz (el constructor) y el destino se
+        // resuelve por el punto del puntero, así que este envoltorio no necesita su propio manejador. Antes sí
+        // lo tenía, y su manejador y el de la raíz se pisaban: cada uno desplazaba su viewer y el resultado era
+        // un doble movimiento errático.
+        return new ScrollViewer
         {
             Name = name,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             Content = content
         };
-
-        return pane;
     }
 
     /// <summary>Quién tiene el foco, en palabras, para el rastro del 253.</summary>

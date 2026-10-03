@@ -13,6 +13,102 @@ Este documento se actualiza al finalizar cada sesión de trabajo para consolidar
 
 ## 0. Hito más reciente
 
+- **322. La rueda, un solo contrato en TODO el host (2026-10-03)**:
+  - **El encargo**: «Extiende el manejo de rueda por punto a todas las superficies desplazables del host (diálogos, ajustes, cajón de menú, diseñador de datasets) y retira los manejadores ad-hoc que queden, con una guardia que vigile el contrato único.»
+  - **🔬 Diagnóstico**: el hito 319 dejó el motor único (destino por PUNTO del puntero) pero solo lo engancharon los tres paneles del editor. El contrato tenía **dos puertas** —`EnableScrollSurface(UIElement)` y un `Enable(ContentDialog)` con su `OnDialogPointerWheelChanged`—, y una segunda puerta es una invitación a volver a desviar el contrato.
+  - **🧱 Acciones**:
+    - `ContentDialogWheelScroller.cs`: retirados `Enable(ContentDialog)` y `OnDialogPointerWheelChanged`; **queda una sola puerta**, `EnableScrollSurface`.
+    - `UnoWindowService.ShowOwnedModalAsync`: `EnableScrollSurface(dialog)` — por ahí confluyen `RunAsync`, `ShowSurfaceAsync` (diseñador de datasets incluido) y `RunOwnedAsync`, así que **ningún cuerpo de diálogo engancha la rueda por su cuenta**.
+    - `UnoDialogService.ShowConfirmationDialogAsync` (la única que no pasa por ese sobre): enganche explícito por el mismo contrato.
+    - `SettingsPanel.xaml.cs` y `MainMenuDrawer.xaml.cs`: `EnableScrollSurface(this)` en el constructor (un enganche por raíz; las seis secciones de Ajustes y el viewer del cajón desplazan por punto).
+    - `UnoWheelWiringGuardTests.cs`: ampliada de 4 a **7 pruebas**; incluye un **barrido del host** que exige que cualquier uso de `PointerWheelChanged`/`MouseWheelDelta` en `FileFlow.App.Uno` sea el helper o el zoom del lienzo.
+  - **📊 Validación**:
+    - Build del host: **0 advertencias, 0 errores**.
+    - Suite completa: **1779 superadas, 1 omitida, 0 fallos** (baseline 1776 + 3 pruebas nuevas).
+    - `-SelfCheck`: **VERIFICADO** (inspector `0 -> 48px` y vuelta; consola/catálogo omitidas).
+    - `-SelfCheckSettings`: **VERIFICADO** (seis secciones, escribe y restaura).
+    - `-SelfCheckControlBar`: **VERIFICADO** (cajón con 15 entradas; el «Diseñador de Datasets» abre la superficie del plugin).
+    - `-SelfCheckDialogs`: **VERIFICADO**.
+    - `-SelfCheckUia`: **VERIFICADO** (`S8_rueda_catalogo: 0.0% -> 100.0%`, rueda física real).
+  - **🚧 Frontera**: la rueda se mide en runtime sobre el inspector (sonda interna) y el catálogo (rueda física); Ajustes, cajón y diálogos quedan cubiertos por el contrato único y la guardia, pero sin medida de rueda propia en sus escenas de sondeo. El zoom del lienzo (`EditorCanvasControl.Navigation.cs`) es la única otra rueda del host (hace zoom, no scroll) y la guardia lo declara como excepción.
+
+- **321. El puente MCP del DevServer Uno, operativo (2026-10-03)**:
+  - **El encargo**: «Diagnostica y deja operativo el DevServer del puente Uno para este workspace (resolver el Uno.Sdk en caché y el workspace del MCP) de forma que los selfchecks y sondas de runtime puedan ejecutarse.»
+  - **🔬 Diagnóstico** (dos causas independientes):
+    1. El workspace nunca se inicializó: `NoValidWorkspace` con soluciones de otros proyectos. Resuelto con `uno_app_initialize` + `uno_app_select_solution` (`forceRestart`).
+    2. **Causa de fondo: el DevServer NO honra `NUGET_PACKAGES`.** Con la caché redirigida a `D:\packages\NuGet\cache` (donde `uno.sdk/6.7.30` está y `dotnet build` funciona), el DevServer resuelve contra `%USERPROFILE%\.nuget\packages` y reportaba `SdkNotInCache` con `unoSdkPath: null`. Prueba: tras copiar el SDK a la caché por defecto, `unoSdkPath` pasó a resolverse AHÍ y pidió el siguiente paquete, confirmando que lee la caché por defecto.
+  - **🧱 Acciones**:
+    - `sync-uno-devserver-cache.ps1` (nuevo): copia a la caché por defecto los paquetes `uno.*` que falten, aditivo e idempotente; deduce el origen de `dotnet nuget locals global-packages`.
+    - `AGENTS.md`: el script entra en la tabla de ficheros auxiliares.
+  - **📊 Validación**:
+    - `uno_health`: **Healthy**, `upstreamConnected: true`, `toolCount: 12`, `issues: []`; resueltos `unoSdkPath`/`hostPath`/`settingsPath` y descubierto el add-in `Uno.Settings.DevServer 1.13.4`.
+    - `uno_discover_tools`: **12 herramientas**.
+    - El script: **50 copiados** la primera vez, **0** la segunda (idempotente).
+    - Suite completa: **1776 superadas, 1 omitida, 0 fallos**.
+  - **🚧 Frontera**: las herramientas que ejecutan la app (`uno_app_start`, `uno_app_get_runtime_info`, `uno_devserver_diagnostics`) no están en el conjunto aprobado del servidor MCP, así que no se lanzó la app desde el puente; la evidencia es `uno_health: Healthy` y el descubrimiento de 12 herramientas.
+
+- **320. La rueda se MIDE: sonda interna y rueda física real (2026-10-03)**:
+  - **El encargo**: «Añade al selfcheck del host Uno una sonda que inyecte eventos de rueda reales y verifique que el VerticalOffset cambia en consola, catálogo e inspector, incluyendo una zona sobre texto.»
+  - **🔬 Diagnóstico**: el arreglo del 319 no tenía medida. Al escribirla se midió el falso negativo que la habría inutilizado: **`ChangeView` aplica en el siguiente pase de layout**, así que sin `UpdateLayout` la lectura devuelve el offset VIEJO.
+  - **🧱 Acciones**:
+    - `ContentDialogWheelScroller`: extraídos `ApplyWheelAtPoint` y `ResolveTargetAtPoint` (el mismo código que el evento real); el camino de los diálogos pasa también a resolver por punto y se retira el código muerto (`FindScrollTarget`/`FindDescendantScrollViewer`).
+    - `SelfCheckWheel.cs` (nuevo): sonda interna sobre punto de TEXTO, con `UpdateLayout` y restauración; lo no desplazable se declara OMITIDO, no roto.
+    - `SelfCheckCanvas.cs`: invoca la sonda y anota omisiones.
+    - Anclas UIA: `LogScrollSurface`, `ToolboxScrollSurface`, `InspectorParamsScrollSurface`; cada panel expone `WheelSurfaceForProbe`.
+    - `docs/qa/selfcheck_uia_probe.py`: sondeo **S8** con rueda FÍSICA (`SetCursorPos` + `mouse_event(MOUSEEVENTF_WHEEL)`), leyendo `VerticalScrollPercent`.
+    - `UnoWheelWiringGuardTests.cs` (nuevo) y `mutations/COVERAGE.md` regenerado.
+  - **📊 Validación**:
+    - Build del host: **0 advertencias, 0 errores**.
+    - Suite completa: **1776 superadas, 1 omitida, 0 fallos**.
+    - `-SelfCheck`: **VERIFICADO** (inspector `0 -> 48px` y restauración; consola y catálogo omitidas por falta de contenido).
+    - `-SelfCheckUia`: **VERIFICADO (11/11)** — `S8_rueda_catalogo: 0.0% -> 100.0% (restaurado 0.0%)` con rueda física real.
+    - `-SelfCheckDialogs`: **VERIFICADO**.
+  - **Límite**: la rueda física solo se midió sobre el catálogo; consola e inspector no desbordan en sus escenas de sondeo.
+
+- **319. La rueda se resuelve por el PUNTO del puntero, no por el elemento de origen (2026-10-03)**:
+  - **El encargo**: «sigue ocurriendo lo mismo el control con la rueda es erratico y en el panel de inspeccion no funciona en absoluto. analiza a fondo el problema»
+  - **🔬 Diagnóstico** (los hitos 317/318 atacaron el síntoma equivocado):
+    - El destino se elegía por el `OriginalSource`, que cambia con el elemento bajo el cursor (texto, caja, borde), con la virtualización y con el reparto interno de cada plantilla → la rueda funcionaba «en unas zonas y en otras no».
+    - El inspector tenía **tres** enganches simultáneos (Parámetros, cada pestaña y la raíz): dos manejadores desplazaban dos viewers en el mismo evento → el doble movimiento que se veía como erraticidad.
+    - La pestaña de Parámetros envuelve su `ScrollViewer` en un `Grid`; un «destino preferido» por pestaña activa no cubría que el evento llegara ya marcado desde dentro del `Grid`.
+    - El `ScrollViewer` nativo ya desplaza si el evento llega limpio: el manejador debe **ceder el paso** cuando ya está manejado.
+  - **🧱 Acciones**:
+    - `ContentDialogWheelScroller.EnableScrollSurface(UIElement)`: sin `preferredTarget` ni recorrido por ancestros; el destino es el `ScrollViewer` desplazable más profundo que **contiene el punto** del puntero (buscado en el marco de la superficie), con el primer viewer del panel como último recurso. Añadido el cedo de paso ante `e.Handled`.
+    - `NodeInspectorPanel.xaml.cs`: un único enganche en la raíz; retirados los de `paramsScroll`/`NamedPane` y `FindActiveScrollPane()`.
+    - `UnoInspectorPanelGuardTests`: exige el enganche único y **prohíbe** los enganches por pestaña y el destino preferido.
+    - `NodeParameterViewModelTests.cs`: retirado un bloque duplicado de `EnsureClipboardHost` pegado fuera de la clase que rompía la compilación de la suite (`CS1022`/`CS8803`/`CS0106`); ya estaba en `HEAD`.
+  - **📊 Validación**:
+    - Build del host: **0 advertencias, 0 errores**.
+    - Guardias filtradas de los tres paneles: **24/24 superadas**.
+    - Suite completa: **1772 superadas, 1 omitida, 0 fallos** (vuelve a compilar).
+    - **Límite**: sin verificación con puntero real — el selfcheck no inyecta rueda y el puente Uno no arrancó el DevServer.
+
+- **318. Desplazamiento con rueda independiente del elemento bajo el puntero (2026-10-03)**:
+  - **El encargo**: «ahora depende de donde ponga el cursor funciona o no en el panel de logs y catalogo de nodos. hay zonas donde parece que se activa y ya funciona pero en otras por ejemplo cuando estoy encima de un texto donde no. en el panel de inspector no funciona la rueda del raton.»
+  - **🔬 Diagnóstico**: la primera corrección dependía del `OriginalSource` y no resolvía consistentemente destinos en textos hijos; en Parámetros el `ScrollViewer` está anidado dentro de un `Grid`, y el inspector no siempre recibía el evento.
+  - **🧱 Acciones**:
+    - Mejorado `ContentDialogWheelScroller.EnableScrollSurface` para handler con eventos ya manejados, destino preferido/fallback y búsqueda de viewers verticales u horizontales bajo el puntero.
+    - Cableado de rueda a `LogListView`, `ToolboxScroll` y a la raíz del inspector con selección del scroll activo; parámetros usa su viewer interno.
+    - Ampliadas las guardias de regresión para consola, catálogo e inspector.
+  - **📊 Validación**:
+    - Build del host: **0 advertencias, 0 errores**.
+    - `git diff --check`: correcto.
+    - Tests filtrados bloqueados por errores preexistentes en `NodeParameterViewModelTests.cs` (`CS1022`, `CS8803`, método `EnsureClipboardHost` duplicado), archivo no tocado.
+    - Interacción visual no confirmada: el puente Uno no dispone de `Uno.Sdk 6.7.30` en su caché.
+
+- **317. Restauración del desplazamiento con rueda en consola e inspector (2026-10-03)**:
+  - **El encargo**: «la rueda del raton no desplaza los elementos en el panel de consola de logs ni en el de inspector.»
+  - **🔬 Diagnóstico**: Los controles hijos de la consola (`ListView`/`TextBox`) y los `ScrollViewer` dinámicos del inspector pueden interceptar la rueda; hacía falta escuchar eventos incluso cuando ya estaban marcados como manejados y desplazar el destino correcto.
+  - **🧱 Acciones**:
+    - `ContentDialogWheelScroller.EnableScrollSurface`: nuevo handler reutilizable para hallar el `ScrollViewer` bajo el puntero y aplicar rueda vertical/horizontal con límites.
+    - `LogPanel.xaml.cs`: enganchado a la superficie de la consola.
+    - `NodeInspectorPanel.xaml.cs`: enganchado al scroll de parámetros y a los paneles de las pestañas.
+    - `UnoLogPanelGuardTests` y `UnoInspectorPanelGuardTests`: cobertura de contrato añadida.
+  - **📊 Validación**:
+    - `dotnet build FileFlow.App.Uno/FileFlow.App.Uno.csproj --no-restore`: **0 advertencias, 0 errores**.
+    - Pruebas limitadas bloqueadas por errores de sintaxis preexistentes en `FileFlow.Tests/Unit/ViewModels/NodeParameterViewModelTests.cs` (`CS1022`, `CS8803`; duplicación de `EnsureClipboardHost`), no modificado en este hito.
+    - Verificación interactiva bloqueada porque el puente Uno no encontró `Uno.Sdk 6.7.30` en su caché. El host sí compiló correctamente.
+
 - **316. Modernización y Unificación Centralizada del Almacenamiento de Datos (`AppPaths`) (2026-10-02)**:
   - **El encargo**: «veo que los directorios donde la aplicacion guarda datos y los ajustes estan un poco dispersos. analiza donde se guardan actualmente los datos y propon un plan para unificarllo todo sigueindo loos patrones de las palicaciones modernas. procede»
   - **🔬 Diagnóstico**:

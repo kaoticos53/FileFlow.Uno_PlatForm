@@ -34,6 +34,9 @@ namespace FileFlow.App.Uno.Controls;
 public sealed partial class NodeInspectorPanel : UserControl
 {
     // ── Superficie interna para el sondeo en runtime (--selfcheck) ──
+    /// <summary>La superficie sobre la que la ficha resuelve la rueda (la sonda del sondeo la mide).</summary>
+    internal UIElement WheelSurfaceForProbe => this;
+
     /// <summary>El control de una fila de parámetro por su AutomationId (null si esa fila no lo tiene).</summary>
     internal Control? ParameterControl(string automationId) =>
         _paramControls.TryGetValue(automationId, out Control? control) ? control : null;

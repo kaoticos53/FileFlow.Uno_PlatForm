@@ -221,6 +221,7 @@
 
     <!-- Fila 2 · Catálogo: grupos acordeón con sus nodos -->
     <ScrollViewer x:Name="ToolboxScroll" Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                  AutomationProperties.AutomationId="ToolboxScrollSurface"
                   Margin="0,2,0,0" Padding="0,0,2,0">
       <ItemsControl x:Name="GroupsHost" ItemsSource="{x:Bind Vm.CategoryGroups}">
         <ItemsControl.ItemTemplate>

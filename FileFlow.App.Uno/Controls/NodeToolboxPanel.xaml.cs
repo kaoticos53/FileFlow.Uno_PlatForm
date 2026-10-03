@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using FileFlow.App.Models;
+using FileFlow.App.Uno.Platform;
 using FileFlow.App.ViewModels;
 using FileFlow.Sdk.Localization;
 using Microsoft.UI.Xaml;
@@ -32,6 +33,7 @@ public sealed partial class NodeToolboxPanel : UserControl, IDisposable
     public NodeToolboxPanel()
     {
         InitializeComponent();
+        ContentDialogWheelScroller.EnableScrollSurface(ToolboxScroll);
         LocalizationManager.Instance.LanguageChanged += OnLanguageChanged;
     }
 
@@ -459,6 +461,9 @@ public sealed partial class NodeToolboxPanel : UserControl, IDisposable
     /// model. La sonda compara las dos para garantizar que el control de filtro cae dentro de los límites
     /// del cajón y cubre todas las categorías declaradas.
     /// </summary>
+    /// <summary>La superficie sobre la que el catálogo resuelve la rueda (la sonda del sondeo la mide).</summary>
+    internal UIElement WheelSurfaceForProbe => ToolboxScroll;
+
     internal IReadOnlyList<Windows.Foundation.Rect> ChipBoxesForProbe()
     {
         var boxes = new List<Windows.Foundation.Rect>();
