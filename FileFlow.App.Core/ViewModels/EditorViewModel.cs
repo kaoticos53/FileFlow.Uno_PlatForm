@@ -12,7 +12,6 @@ using FileFlow.Core.Plugins;
 using FileFlow.Sdk;
 using FileFlow.Sdk.Localization;
 using FileFlow.Sdk.Services;
-using FileFlow.Sdk.Storage;
 using Material.Icons;
 
 namespace FileFlow.App.ViewModels;
@@ -219,17 +218,6 @@ public partial class EditorViewModel : ObservableObject, IDisposable
     partial void OnViewportZoomChanged(double value)
     {
         OnPropertyChanged(nameof(FormattedZoom));
-    }
-
-    partial void OnGlobalOutputDirChanged(string value)
-    {
-        foreach (var node in Nodes)
-        {
-            foreach (var parameter in node.Parameters)
-            {
-                parameter.RecalculateEvaluatedValue();
-            }
-        }
     }
 
     public void UpdateSelectedCount()
@@ -706,10 +694,6 @@ public partial class EditorViewModel : ObservableObject, IDisposable
         if (!string.IsNullOrWhiteSpace(graph.GlobalOutputDir))
         {
             GlobalOutputDir = graph.GlobalOutputDir;
-        }
-        else
-        {
-            GlobalOutputDir = _userPreferencesService.Preferences.DefaultGlobalOutputDir;
         }
 
         var importResult = WorkflowGraphSerializer.Import(

@@ -146,7 +146,7 @@ public partial class NodeParameterViewModel
             : await _files.ShowOpenFileDialogAsync(title, filter);
         if (!string.IsNullOrEmpty(picked))
         {
-            _uiDispatcher.Post(() => Value = picked);
+            Value = picked;
         }
     }
 

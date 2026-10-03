@@ -459,8 +459,7 @@ public class VariableDiscoveryService : IVariableDiscoveryService
         };
 
         item.Metadata["TemporaryDirectory"] = AppPaths.DefaultTempDirectory;
-        string defaultGlobalOut = UserPreferencesService.Instance.Preferences?.DefaultGlobalOutputDir ?? AppPaths.DefaultGlobalOutputDir;
-        item.Metadata["GlobalOutputDir"] = !string.IsNullOrWhiteSpace(defaultGlobalOut) ? defaultGlobalOut : AppPaths.DefaultGlobalOutputDir;
+        item.Metadata["GlobalOutputDir"] = AppPaths.DefaultGlobalOutputDir;
         item.Metadata["Counter"] = 1;
         item.Metadata["TotalFileCount"] = 42;
 

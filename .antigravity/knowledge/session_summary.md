@@ -13,96 +13,6 @@ Este documento se actualiza al finalizar cada sesión de trabajo para consolidar
 
 ## 0. Hito más reciente
 
-- **320. Implementación del Previsualizador Visual de Archivos en el Host Uno y Activación del Botón «Ver» (2026-10-03)**:
-  - **El encargo**: «el boton ver de la pestaña de entradas o salidas que deberia hacer una previsualizacion del archivo que se esta tratando no funciona.»
-  - **🔬 Diagnóstico**:
-    - Al pulsar el botón «Ver» en cualquier tarjeta de snapshot de las pestañas «Entradas», «Salidas» o «Snapshots» del inspector (o desde los registros en `LogViewModel`), `NodeInspectorViewModel.PreviewSpecificSnapshotCommand` invocaba correctamente `HostUi.ShowFilePreview(new FilePreviewRequest(...))`.
-    - En el host Uno (`App.xaml.cs`), el evento `HostUi.FilePreviewRequested` carecía de suscriptores (tenía un comentario indicando `vista previa sin ventana`). La petición era ignorada en silencio como un no-op.
-    - El host carecía de una vista modal y control especializado para representar el `FilePreviewContext`, gestionar hermanos (snapshots de la ejecución) o alternar entre el archivo original y el procesado.
-  - **🧱 Acciones**:
-    - `FileFlow.App.Uno/Controls/FilePreviewDialogBody.xaml` y `.xaml.cs`:
-      - Diseñado e implementado el diálogo modal completo de previsualización (hasta 1100x850 px).
-      - **Cabecera rica**: Nombre de archivo con tooltip, insignias temáticas de extensión, peso formateado (`KB`, `MB`), dimensiones en píxeles y conmutador segmentado «Procesado» vs «Original» cuando `HasOriginalComparison` está activo.
-      - **Navegador de hermanos**: Botones `<` y `>` y contador interactivo (`1 de 5`) para desplazarse por todos los snapshots del nodo sin cerrar la ventana.
-      - **Visor polimórfico de contenido**:
-        - *Imágenes* (`.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.gif`, `.ico`, `.svg`): Renderizado nativo vía `BitmapImage` con centrado y captura de dimensiones en `ImageOpened`.
-        - *Texto y código* (`.txt`, `.json`, `.csv`, `.log`, `.md`, `.cs`, `.py`, `.yaml`, etc.): Visor de sólo lectura en tipografía monoespaciada, lectura asíncrona segura hasta 200 KB, recuento reactivo de líneas y caracteres, y badge de aviso ante truncado.
-        - *Archivos genéricos / binarios* (`.pdf`, `.mp4`, `.zip`, etc.): Tarjeta descriptiva con icono temático, tamaño, fechas de creación/modificación y botón de apertura externa.
-      - **Ficha de metadatos lateral**: Lista organizada de pares clave-valor que expone etiquetas de IA, dimensiones, propiedades EXIF y OCR registrados en el contexto del archivo.
-      - **Barra de acciones inferior**: Ruta física completa, botones rápidos «Copiar Ruta», «Explorador» (con `/select`), «Abrir Archivo» con la aplicación predeterminada del sistema y «Cerrar».
-    - `FileFlow.App.Uno/Platform/UnoFilePreviewHost.cs`:
-      - Suscripción limpia y desacoplada a `HostUi.FilePreviewRequested` despachada en el hilo de interfaz de usuario.
-      - Comprobación de `XamlRoot` y ausencia de otros diálogos abiertos antes de instanciar el `ContentDialog` con identificador de automatización `FilePreviewDialog`, abriéndolo mediante `UnoWindowService.RunOwnedAsync()`.
-    - `FileFlow.App.Uno/App.xaml.cs`:
-      - Conectado `HostUi.FilePreviewRequested` a `UnoFilePreviewHost.ShowPreviewAsync(request)`.
-    - `FileFlow.App.Core/Resources/Strings.resx` y `Strings.es.resx`:
-      - Añadidas claves multilingües normalizadas (`Preview_OpenFile`, `Preview_Lines`, `Preview_Truncated`, `Preview_NoMetadata`, `Preview_GenericBinaryDesc`).
-    - `FileFlow.Tests/Unit/App/FilePreviewTests.cs`:
-      - Nueva suite de 4 pruebas unitarias cubriendo emisión de evento en `HostUi`, mapeo fiel de contexto, cálculo de `HasOriginalComparison` y preservación de hermanos y propietario.
-  - **📊 Validación**:
-    - `dotnet build FileFlow.App.Uno`: **0 errores**.
-    - `dotnet test --filter FilePreviewTests`: **4/4 superadas (100%)**.
-    - `dotnet test --filter UiIconographyTests`: **3/3 superadas (100%)**.
-    - `.\run.ps1 -SelfCheck`: **Código 0 (83 comprobaciones de lienzo y paneles validadas con éxito)**.
-
-- **319. Corrección de Crash en Pestaña de Salidas del Inspector por Doble Adscripción Visual de Tarjetas (2026-10-03)**:
-  - **El encargo**: «al hacer una prueba con un nodo en este caso el de carpeta destino y activar la pestaña de salida en el inspector la aplicacion se cierra. analiza el problema»
-  - **🔬 Diagnóstico**:
-    - En `NodeInspectorPanel.xaml.cs` (`BuildSnapshotCard`), la cabecera `header` (un `Grid` con las etiquetas de puerto, timestamp, ruta de archivo y botón «Ver») se agregaba primero a `root.Children.Add(header);`. Luego se asignaba al `Expander` mediante `expander.Header = header;` y se agregaba también el expander a `root.Children.Add(expander);`.
-    - Al probar de forma aislada un nodo (como `DestinationSinkNode`), se genera un snapshot de salida que invoca `RebuildOutputCards()`. Mientras la pestaña visible era «Parámetros», `_outputsPane` estaba en `Visibility.Collapsed`.
-    - Al pulsar la pestaña «Salidas», `ShowTab(3)` pasaba `_outputsPane` a `Visibility.Visible`. El pase de maquetación de WinUI 3 intentaba asignar `header` al `ContentPresenter.Content` del `Expander`. Al tener `header` ya un padre visual (`root`), el motor nativo de XAML arrojaba la excepción fatal `Failed to assign to property 'Microsoft.UI.Xaml.Controls.ContentControl.Content'`, provocando el cierre abrupto de la aplicación.
-  - **🧱 Acciones**:
-    - `FileFlow.App.Uno/Controls/NodeInspectorPanel.xaml.cs`: eliminada la adscripción duplicada `root.Children.Add(header);` en `BuildSnapshotCard`, dejando a `header` única y exclusivamente dentro de `expander.Header`. Se configuró además `HorizontalContentAlignment = HorizontalAlignment.Stretch` en el `Expander` para asegurar el estiramiento visual correcto.
-    - `FileFlow.App.Uno/Controls/NodeInspectorPanel.Probes.cs`: ampliado `ProbeSnapshotTabs()` para sondear en tiempo de ejecución no solo la pestaña de snapshots combinada, sino también las pestañas de «Entradas» y «Salidas» verificando la conmutación y visibilidad sin excepciones.
-    - `FileFlow.App.Uno/SelfCheckPanels.cs`: enriquecido el sondeo del selfcheck para instanciar tanto un snapshot de entrada como uno de salida en el nodo inspeccionado de prueba.
-  - **📊 Validación**:
-    - `dotnet test`: **1.775 pruebas superadas al 100% (0 fallos, 1 omitida)**.
-    - `selfcheck-crash.txt`: **0 errores / archivo inexistente**.
-    - `.\run.ps1 -SelfCheck`: **Código 0 (83 comprobaciones de lienzo y paneles validadas con éxito)**.
-
-- **318. Resolución Dinámica y Reactiva de `{GlobalOutputDir}` desde Ajustes del Usuario (2026-10-03)**:
-  - **El encargo**: «la variable {GlobalOutputDir} no contiene el valor que esta puesto en ajustes.»
-  - **🔬 Diagnóstico**:
-    - En `NodeParameterViewModel.cs`, la evaluación en tiempo real (`RecalculateEvaluatedValue`) instanciaba un `FileItemContext` vacío cuando no había ejecución previa (`_activeEvaluationContext == null`). Al no contener `"GlobalOutputDir"` en sus metadatos, `ParameterHelper.FlowOutputFolder` devolvía `null` y `SystemVariablesResolver` caía en el valor de `AppPaths.DefaultGlobalOutputDir` (la carpeta de Documentos del sistema) en lugar de la ruta guardada en Ajustes (`UserPreferencesService.Preferences.DefaultGlobalOutputDir`).
-    - Al guardar una nueva ruta de salida en Ajustes (`WorkflowSettingsViewModel`), `EditorViewModel.GlobalOutputDir` actualizaba su valor, pero no disparaba el recálculo reactivo de los parámetros de los nodos colocados en el lienzo, dejando las etiquetas de previsualización (`EvaluatedValue`) congeladas en el valor antiguo.
-    - El catálogo de variables de muestra (`VariableDiscoveryService`, `TextEditorDialogViewModel` y `StatusBarViewModel`) leía directamente `AppPaths.DefaultGlobalOutputDir` en lugar de las preferencias persistidas.
-  - **🧱 Acciones**:
-    - `FileFlow.App.Core/ViewModels/NodeParameterViewModel.cs`: en `RecalculateEvaluatedValue()`, si el contexto de evaluación no tiene `GlobalOutputDir`, se clona de forma segura (sin mutar los metadatos de los snapshots históricos) y se puebla dinámicamente con `ResolveEditor()?.GlobalOutputDir ?? UserPreferencesService.Instance.Preferences.DefaultGlobalOutputDir`.
-    - `FileFlow.App.Core/ViewModels/EditorViewModel.cs`: implementado `partial void OnGlobalOutputDirChanged(string value)` que recorre de forma reactiva todas las tarjetas del lienzo y llama a `p.RecalculateEvaluatedValue()` en cada parámetro. En `LoadFromGraphModel`, si el grafo importado no declara salida propia, se restablece limpiamente a las preferencias del usuario.
-    - `FileFlow.App.Core/ViewModels/NodeInspectorViewModel.cs`: suscripción a `EditorViewModel.PropertyChanged` para el cambio de `GlobalOutputDir` para refrescar los parámetros inspeccionados en caliente; e inicialización de `GlobalOutputDir` en el ítem de prueba aislada en `TestNodeWithCustomFileAsync`.
-    - `FileFlow.App.Core/Services/VariableDiscoveryService.cs`, `TextEditorDialogViewModel.cs`, `StatusBarViewModel.cs`: actualizados para utilizar prioritariamente la ruta de salida de las preferencias de usuario (`DefaultGlobalOutputDir`).
-    - `FileFlow.App.Core/Services/WorkflowExecutionCoordinator.cs`: garantizado el fallback limpio a `_prefs.Preferences.DefaultGlobalOutputDir` si `_editorViewModel.GlobalOutputDir` estuviera vacío.
-    - `FileFlow.Tests/Unit/ViewModels/NodeParameterViewModelTests.cs`: incorporada prueba unitaria `EvaluatedValue_WithGlobalOutputDirToken_ResolvesToCustomEditorOrPreferencesSetting`.
-  - **📊 Validación**:
-    - `dotnet test`: **1.775 pruebas superadas al 100% (0 fallos, 1 omitida)**.
-    - `NodeParameterViewModelTests` y `NodeInspectorViewModelTests`: **25/25 pruebas superadas con éxito**.
-    - `.\run.ps1 -SelfCheck`: **Código 0 (83 comprobaciones de lienzo y paneles OK)**.
-
-- **317. Corrección de Carga de Parámetros de Carpeta, Sincronización de Diálogos y Botón de Restauración Canónica (2026-10-03)**:
-  - **El encargo**: «los parametros de carpeta no funcionan bien. Al cargar un flujo en el imput de los parametros de carpetas siempre sale el placeholder y no la ruta guardada. tmpoco se actualiza siempre al elejirla. creo que lo mejor seria eliminar el placeholder y hacer que el parametro por defecto este como dato del imput. dame opciones» -> Selección: Opción 3.
-  - **🔬 Diagnóstico**:
-    - `WireBoxToParameter` en `NodeInspectorPanel.xaml.cs` asignaba `box.PlaceholderText` pero no inicializaba `box.Text = p.Value?.ToString() ?? string.Empty;`. Por ello, al cargar cualquier flujo, `box.Text` empezaba en blanco (`""`) y WinUI mostraba el placeholder ocultando la ruta guardada o el valor por defecto.
-    - `UnoFileDialogService.ShowFolderBrowserDialogAsync` usaba `.GetAwaiter().GetResult()` bloqueando síncronamente el hilo de UI dentro de `TryEnqueue`, y `BrowsePathAsync` asignaba `Value = picked` sin asegurar el despacho en hilo de UI, provocando que WinUI descartara la actualización por conflicto cross-thread.
-    - Faltaba un comando/botón explícito para restablecer los parámetros a su valor predeterminado canónico (`{GlobalOutputDir}`, `{TempDir}/intermediate`, etc.).
-  - **🧱 Acciones**:
-    - `NodeInspectorPanel.xaml.cs`:
-      - `WireBoxToParameter`: inicializado `box.Text` con `p.Value` al crear el control y garantizado despacho seguro en hilo de UI (`UpdateOnUi`) ante eventos `PropertyChanged`.
-      - `BuildParameterRow`: incorporado botón «↺» (`ParamReset_<Key>`) en la fila de explorador con tooltip `Uno_InspectorResetDefault` para restablecer el valor canónico.
-    - `UnoFileDialogService.cs`:
-      - `EnqueueOnUiAsync` reescrito con `Func<Window, Task<string?>>` para procesar los selectores de archivo/carpeta de forma 100% asíncrona sin bloquear el hilo de UI.
-    - `NodeParameterViewModel.cs`:
-      - Añadida propiedad `DefaultValue` (descriptor o fallback de carpeta canónico) y comando `ResetToDefaultCommand` (`[RelayCommand]`).
-    - `NodeParameterViewModel.Pickers.cs`:
-      - Asegurado que `BrowsePathAsync` despache `Value = picked` mediante `_uiDispatcher.Post`.
-    - `Strings.resx` y `Strings.es.resx`:
-      - Añadidos recursos `Uno_InspectorResetDefault` y `Param_Browse_ToolTip`.
-    - `NodeParameterViewModelTests.cs`:
-      - Nuevas pruebas unitarias para `ResetToDefaultCommand` y resolución de valores canónicos por defecto.
-  - **📊 Validación**:
-    - `dotnet test`: **1.773 pruebas superadas al 100% (0 fallos, 1 omitida)**.
-    - `UnoInspectorPanelGuardTests` y `UnoNodeDialogCatalogGuardTests`: **15/15 superadas**.
-    - `.\run.ps1 -SelfCheck`: **Código 0 (83 comprobaciones OK)**.
-
 - **316. Modernización y Unificación Centralizada del Almacenamiento de Datos (`AppPaths`) (2026-10-02)**:
   - **El encargo**: «veo que los directorios donde la aplicacion guarda datos y los ajustes estan un poco dispersos. analiza donde se guardan actualmente los datos y propon un plan para unificarllo todo sigueindo loos patrones de las palicaciones modernas. procede»
   - **🔬 Diagnóstico**:
@@ -1133,6 +1043,71 @@ Este documento se actualiza al finalizar cada sesión de trabajo para consolidar
   - **75. Patrón Fan-Out / Fan-In para Archivos Comprimidos (`ArchiveFanOutNode` y `ArchiveFanInNode`)**:
     - Desempaquetado a sesión temporal, procesamiento individual de elementos por el grafo DAG y re-empaquetado atómico con preservación estricta de subcarpetas (`/`). `ImageOptimizerNode` con `KeepOriginalIfLarger`.
   - **74. Sincronización en Hilo Dispatcher y Corrección de Inversión de Semáforos**:
+    - Despacho seguro de mutaciones de variables de UI a `Dispatcher`. Adquisición jerárquica de semáforos (`nodeThrottle` antes de `concurrencyThrottle`) para streaming fluido 1 a 1.
+  - **73. Variables Dinámicas VLM, Structured Outputs Determinista y Banco de Pruebas de 1 Ciclo**:
+    - Aplanador recursivo de JSON (`JsonMetadataFlattener`). Salida estructurada `json_schema` con fallback gradual en `MultimodalVlmClientEngine`.
+    - Autodescubrimiento topológico en `VariableDiscoveryService` e importación en tiempo real desde la pestaña de prueba en `MultimodalVlmConfigWindow`.
+  - **72. Mensajes Personalizados con Variables Dinámicas en `LogOutputNode`**:
+    - Parámetro `CustomMessage` (`ParameterEditorType.MultiLineText`) con interpolación de variables vía `VariableTemplateResolver`, editor modal ampliado (`⤢`) y catálogo de variables (`{x}`).
+  - **71. Concurrencia Configurable en Nodos VLM y Perfiles de Proveedor**:
+    - Parámetro dinámico `MaxConcurrency` (1 a 32) en `MultimodalVisionLlmNode` y semáforos dimensionados por endpoint en `MultimodalVlmClientEngine`.
+  - **70. Medición Precisa de Rendimiento y Deduplicación del Contador de Elementos**:
+    - Concurrencia declarativa por nodo y reporte de duración neta (`ReportExecutionDuration`), eliminando distorsión por tiempo en cola. Deduplicación concurrente en `WorkflowTelemetryTracker`.
+
+---
+
+## 2. Arquitectura y Capacidades Consolidadas de la Solución
+
+### A. Desacoplamiento Estricto por Capas (Clean Architecture)
+```mermaid
+graph TD
+    App["FileFlow.App (WPF / Avalonia)"] --> Core["FileFlow.Core (Motor DAG & Channels)"]
+    App --> Sdk["FileFlow.Sdk (Contratos & Modelos Base)"]
+    Core --> Sdk
+    Plugins["FileFlow.Plugin.* (11 Plugins Autónomos)"] --> Sdk
+    App -.->|Carga Dinámica AssemblyLoadContext| Plugins
+```
+
+- **`FileFlow.Sdk`**: Biblioteca pura en C# 13 / .NET 9 con contratos (`IFlowNode`, `IFlowExecutionContext`, `ITempWorkspaceManager`, `IUiDispatcher`, `IClipboardService`), modelos (`FileItemContext`, `NodeDescriptor`), motores de renombrado y serialización relajada (`JsonDefaults`).
+- **`FileFlow.Core`**: Orquestador del motor DAG, canales asíncronos (`System.Threading.Channels`), telemetría atómica, base de datos de logs en SQLite (`SqliteLogStore`), aislador de temporales (`WorkflowWorkspaceManager`) y carga dinámica de plugins (`PluginLoader`).
+- **`FileFlow.Plugin.*` (11 Plugins)**:
+  1. `FileFlow.Plugin.Logic`: Nodos condicionales, bifurcaciones, filtros por metadatos/regex.
+  2. `FileFlow.Plugin.FileSystem`: Orígenes de carpetas, renombrador avanzado (9 métodos), movimiento/copia, borrado seguro a papelera, registro de log.
+  3. `FileFlow.Plugin.Archives`: Descompresión multi-estrategia (.NET 9, 7-Zip, SharpCompress), Fan-Out, Fan-In, compresión jerárquica.
+  4. `FileFlow.Plugin.Images`: Conversión y optimización (WebP, JPEG, PNG), redimensionamiento, preservación condicional por tamaño.
+  5. `FileFlow.Plugin.AI`: Inferencia multimodal VLM (Qwen2.5-VL, Ollama, LM Studio, In-Process), clasificador visual heurístico/neuronal (`ImageTypeClassifierNode`), CLIP ViT-B/32 ONNX, OCR local con Tesseract/ImageSharp.
+  6. `FileFlow.Plugin.Audio`: Transcodificación y extracción de tags ID3/metadatos de audio.
+  7. `FileFlow.Plugin.Documents`: Manipulación de PDFs, unión, división y extracción de texto.
+  8. `FileFlow.Plugin.Video`: Integración con FFmpeg para conversión, remuxing y miniaturas.
+  9. `FileFlow.Plugin.Integrations`: Webhooks, subida HTTP/REST, SFTP, SMB, WebDAV.
+  10. `FileFlow.Plugin.Reports`: Generación de reportes tabulares Excel (.xlsx) y CSV con auto-estilos.
+  11. `FileFlow.Plugin.Database`: Ingesta y exportación directa a bases de datos SQLite / SQL.
+- **`FileFlow.App`**: Interfaz de usuario rica con lienzo Nodify, inspección en vivo de nodos, consola de telemetría SQLite de alto rendimiento, Theme Studio (8 presets + personalización), Regex Studio y diseño modular MVVM con `CommunityToolkit.Mvvm`.
+
+### B. Principios Clave del Sistema
+1. **Inmutabilidad del Archivo de Origen**: No destructivo por defecto. El original solo se altera mediante `OriginalFileActionNode`.
+2. **Localización Dinámica (i18n)**: Español (`es-ES`) e Inglés (`en-US`) con cambio en caliente reactivo sin reiniciar.
+3. **Autonomía Total por Plugin (Zero-Touch en Host)**: Todo código, vista modal (`UI/`), configuración (`Config/`) y recursos de texto (`Resources/`) cohabitan dentro de la carpeta de cada plugin (`FileFlow.Plugin.*`).
+4. **Patrón Adaptador de Modelos de IA**: Inferencia modular mediante contratos (`IVlmAdapter`, `IObjectDetectorAdapter`) con auto-descubrimiento en factorías e inyección de preprocesado geométrico exacto.
+
+---
+
+## 3. Reglas de Operación y Mantenimiento Memorizadas
+
+1. **Protocolo de Arranque**: Consultar siempre `.antigravity/knowledge/session_summary.md`, `docs/PROJECT_WALKTHROUGH.md` y `.antigravity/knowledge/repo_architecture.md` antes de escanear código.
+2. **Optimización de Tokens**: No leer ficheros completos preventivamente; usar búsquedas dirigidas (`grep_search`).
+3. **Actualización Continua**: Registrar obligatoriamente todo cambio cronológico en `docs/PROJECT_WALKTHROUGH.md` y actualizar `session_summary.md` al finalizar la sesión.
+4. **La Ventana Viva y el Archivo Frío**: la bitácora y este resumen son **ventanas vivas** (el tramo en curso). Al cerrar un tramo se hace un **corte**: las entradas que dejan de ser el día a día se mueven **enteras** —sin resumir ni reescribir— a `docs/history/` y `knowledge/history/`, con su cabecera de periodo y su rango de hitos, y la ventana viva se queda con el índice que apunta a ellas.
+5. **Calidad y Verificación**: Compilación con `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` y paso del 100% de la suite de tests (`dotnet test` o `.\test.ps1`).
+
+---
+
+## 4. Enlace al Historial Completo de Sesiones Anteriores
+
+El historial pormenorizado vive en el **archivo frío**, por volúmenes:
+- 📄 [**`.antigravity/knowledge/history/2026-09-28_session_summary_hitos_109_a_255.md`**](file:///.antigravity/knowledge/history/2026-09-28_session_summary_hitos_109_a_255.md) — hitos **109 a 255** (2026-09-16 → 2026-09-28).
+- 📄 [**`.antigravity/knowledge/history/2026-09-13_session_summary_archive.md`**](file:///.antigravity/knowledge/history/2026-09-13_session_summary_archive.md) — hitos **1 a 108** y los desarrollos fundacionales de 2025/2026.
+- 🗂️ La bitácora se divide igual: [`docs/PROJECT_WALKTHROUGH.md`](file:///docs/PROJECT_WALKTHROUGH.md) es la ventana viva y [`docs/history/`](file:///docs/history/) el archivo frío.
     - Despacho seguro de mutaciones de variables de UI a `Dispatcher`. Adquisición jerárquica de semáforos (`nodeThrottle` antes de `concurrencyThrottle`) para streaming fluido 1 a 1.
   - **73. Variables Dinámicas VLM, Structured Outputs Determinista y Banco de Pruebas de 1 Ciclo**:
     - Aplanador recursivo de JSON (`JsonMetadataFlattener`). Salida estructurada `json_schema` con fallback gradual en `MultimodalVlmClientEngine`.

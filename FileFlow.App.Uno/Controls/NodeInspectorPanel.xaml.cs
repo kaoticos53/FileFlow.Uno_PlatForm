@@ -745,6 +745,8 @@ public sealed partial class NodeInspectorPanel : UserControl
         Grid.SetColumn(viewButton, 1);
         header.Children.Add(viewButton);
 
+        root.Children.Add(header);
+
         // El contenido desplegable: la misma información que el Expander de la versión anterior.
         var details = new StackPanel { Spacing = 3, Margin = new Thickness(12, 2, 0, 0) };
         details.Children.Add(new TextBlock
@@ -796,11 +798,10 @@ public sealed partial class NodeInspectorPanel : UserControl
 
         var expander = new Expander
         {
-            Header = header,
             Content = details,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Stretch
+            HorizontalAlignment = HorizontalAlignment.Stretch
         };
+        expander.Header = header;
 
         // La tarjeta canta su colección e índice para la observación UIA externa (hito 245): el
         // AID vive en el Expander (con peer) porque un StackPanel raíz sin peer no materializa en
@@ -930,7 +931,6 @@ public sealed partial class NodeInspectorPanel : UserControl
     private void WireBoxToParameter(TextBox box, NodeParameterViewModel p)
     {
         box.PlaceholderText = p.Placeholder;
-        box.Text = p.Value?.ToString() ?? string.Empty;
 
         box.TextChanged += (_, _) =>
         {
@@ -940,23 +940,11 @@ public sealed partial class NodeInspectorPanel : UserControl
             }
         };
 
-        void UpdateOnUi(Action action)
-        {
-            if (box.DispatcherQueue is { HasThreadAccess: false } dq)
-            {
-                dq.TryEnqueue(() => action());
-            }
-            else
-            {
-                action();
-            }
-        }
-
         void OnParameterChanged(object? _, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(NodeParameterViewModel.Placeholder))
             {
-                UpdateOnUi(() => box.PlaceholderText = p.Placeholder);
+                box.PlaceholderText = p.Placeholder;
                 return;
             }
 
@@ -966,13 +954,10 @@ public sealed partial class NodeInspectorPanel : UserControl
             }
 
             string value = p.Value?.ToString() ?? string.Empty;
-            UpdateOnUi(() =>
+            if (box.Text != value)
             {
-                if (box.Text != value)
-                {
-                    box.Text = value;
-                }
-            });
+                box.Text = value;
+            }
         }
 
         p.PropertyChanged += OnParameterChanged;
@@ -1142,7 +1127,6 @@ public sealed partial class NodeInspectorPanel : UserControl
         }
         else if (p.HasBrowseButton)
         {
-            var loc = LocalizationManager.Instance;
             var box = new TextBox { FontSize = 12, CornerRadius = new CornerRadius(4) };
             Anchor("ParamBox_" + p.Key, box);
             WireBoxToParameter(box, p);
@@ -1158,38 +1142,18 @@ public sealed partial class NodeInspectorPanel : UserControl
                 Foreground = Brush("CanvasTextBrush")
             };
             Anchor("ParamBrowse_" + p.Key, browse);
-            ToolTipService.SetToolTip(browse, loc.GetString("Param_Browse_ToolTip", "Seleccionar ruta en el explorador"));
             // La variante ASÍNCRONA del explorador de rutas (hito 273): este host abre sus pickers desde el
             // clic de UI, y allí la síncrona no puede —los pickers de WinRT exigen el hilo de UI y
             // bloquearlo interbloquearía, así que el servicio del host devuelve null—: con la síncrona el
             // botón «…» quedaba dibujado y sin efecto (medido con el ratón).
             browse.Click += (_, _) => p.BrowsePathAsyncCommand.Execute(null);
-
-            var reset = new Button
-            {
-                Content = "↺",
-                Padding = new Thickness(8, 2, 8, 2),
-                FontSize = 12,
-                CornerRadius = new CornerRadius(4),
-                Background = Brush("CanvasSurfaceBrush"),
-                BorderBrush = Brush("CanvasBorderBrush"),
-                BorderThickness = new Thickness(1),
-                Foreground = Brush("CanvasSecondaryBrush")
-            };
-            Anchor("ParamReset_" + p.Key, reset);
-            ToolTipService.SetToolTip(reset, loc.GetString("Uno_InspectorResetDefault", "Restablecer al valor por defecto"));
-            reset.Click += (_, _) => p.ResetToDefaultCommand.Execute(null);
-
             var grid = new Grid { ColumnSpacing = 4 };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             Grid.SetColumn(box, 0);
             Grid.SetColumn(browse, 1);
-            Grid.SetColumn(reset, 2);
             grid.Children.Add(box);
             grid.Children.Add(browse);
-            grid.Children.Add(reset);
             editor = grid;
         }
         else if (p.IsMultiLine)

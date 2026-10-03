@@ -328,9 +328,8 @@ public partial class StatusBarViewModel : ObservableObject
         {
             // La carpeta de salida por defecto de verdad —la de los ajustes, que es la que el motor usa cuando el
             // flujo no declara ninguna—, no una ruta de Windows escrita a mano que en otros sistemas no existe.
-            string defaultFolder = UserPreferencesService.Instance.Preferences?.DefaultGlobalOutputDir ?? FileFlow.Sdk.Storage.AppPaths.DefaultGlobalOutputDir;
             string folder = string.IsNullOrWhiteSpace(GlobalOutputDir)
-                ? defaultFolder
+                ? FileFlow.Sdk.Storage.AppPaths.DefaultGlobalOutputDir
                 : GlobalOutputDir;
             if (!_processLauncher.OpenFolder(folder))
             {

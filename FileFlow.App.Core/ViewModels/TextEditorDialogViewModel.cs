@@ -181,7 +181,7 @@ public partial class TextEditorDialogViewModel : ObservableObject
             [
                 // La muestra es la carpeta real de los ajustes, no una ruta con forma de Windows: el catálogo de
                 // variables resuelve el valor de verdad, y esto es sólo el respaldo para cuando no hay catálogo.
-                new("GlobalOutputDir", "{GlobalOutputDir}", "Carpeta de salida global", "Sistema", UserPreferencesService.Instance.Preferences?.DefaultGlobalOutputDir ?? AppPaths.DefaultGlobalOutputDir),
+                new("GlobalOutputDir", "{GlobalOutputDir}", "Carpeta de salida global", "Sistema", AppPaths.DefaultGlobalOutputDir),
                 new("FileName", "{FileName}", "Nombre del archivo", "Sistema", "documento.pdf"),
                 new("FileNameWithoutExtension", "{FileNameWithoutExtension}", "Nombre sin extensión", "Sistema", "documento"),
                 new("Extension", "{Extension}", "Extensión del archivo", "Sistema", ".pdf"),

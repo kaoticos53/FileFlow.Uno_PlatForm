@@ -566,6 +566,4 @@
   <data name="Param_Placeholder_IntermediateDefault" xml:space="preserve"><value>Por defecto: Carpeta temporal aislada {TempDir}/intermediate</value></data>
   <data name="Param_Placeholder_FolderDefault" xml:space="preserve"><value>Por defecto: {GlobalOutputDir}</value></data>
   <data name="Param_Placeholder_FileDefault" xml:space="preserve"><value>Ruta de archivo...</value></data>
-  <data name="Uno_InspectorResetDefault" xml:space="preserve"><value>Restablecer al valor por defecto</value></data>
-  <data name="Param_Browse_ToolTip" xml:space="preserve"><value>Seleccionar ruta en el explorador</value></data>
 </root>

@@ -174,9 +174,7 @@ public sealed class WorkflowExecutionCoordinator
         }
         string effectiveGlobalDir = !string.IsNullOrWhiteSpace(graph.GlobalOutputDir)
             ? graph.GlobalOutputDir
-            : (!string.IsNullOrWhiteSpace(_editorViewModel.GlobalOutputDir)
-                ? _editorViewModel.GlobalOutputDir
-                : _prefs.Preferences.DefaultGlobalOutputDir);
+            : _editorViewModel.GlobalOutputDir;
 
         string effectiveTempDir = !string.IsNullOrWhiteSpace(graph.TemporaryDirectory)
             ? graph.TemporaryDirectory
