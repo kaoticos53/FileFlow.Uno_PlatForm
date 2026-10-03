@@ -12,6 +12,7 @@ using FileFlow.Sdk;
 using FileFlow.Sdk.Localization;
 using FileFlow.Sdk.Services;
 using FileFlow.Sdk.Serialization;
+using FileFlow.Sdk.Storage;
 using FileFlow.Sdk.Telemetry;
 
 namespace FileFlow.App.ViewModels;
@@ -75,6 +76,13 @@ public partial class NodeInspectorViewModel : ObservableObject, IRecipient<NodeS
                 if (_editorViewModel.SelectedNode != null && IsOpen)
                 {
                     InspectNode(_editorViewModel.SelectedNode, autoOpen: false);
+                }
+            }
+            else if (e.PropertyName == nameof(EditorViewModel.GlobalOutputDir))
+            {
+                if (InspectedNode != null && IsOpen)
+                {
+                    UpdateParametersEvaluationContext();
                 }
             }
         };
@@ -333,6 +341,13 @@ public partial class NodeInspectorViewModel : ObservableObject, IRecipient<NodeS
             try
             {
                 var item = new FileItemContext(filePath, isDirectory: false);
+                string? effectiveGlobal = !string.IsNullOrWhiteSpace(_editorViewModel?.GlobalOutputDir)
+                    ? _editorViewModel.GlobalOutputDir
+                    : AppPaths.DefaultGlobalOutputDir;
+                if (!string.IsNullOrWhiteSpace(effectiveGlobal))
+                {
+                    item.Metadata["GlobalOutputDir"] = effectiveGlobal;
+                }
                 string inputPort = InspectedNode.InputPorts.FirstOrDefault()?.Name ?? string.Empty;
 
                 var snapshotIn = NodeDataSnapshot.CreateInput(InspectedNode.Id, inputPort, item);

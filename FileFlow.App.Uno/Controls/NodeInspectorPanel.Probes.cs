@@ -220,17 +220,36 @@ public sealed partial class NodeInspectorPanel : UserControl
 
         int previousIndex = _selectedTab;
         int snapshotsIndex = Array.FindIndex(InspectorTabs, t => t.Aid == "InspectorTabSnapshots");
+        int inputsIndex = Array.FindIndex(InspectorTabs, t => t.Aid == "InspectorTabInputs");
+        int outputsIndex = Array.FindIndex(InspectorTabs, t => t.Aid == "InspectorTabOutputs");
         try
         {
             // La conmutación deja visible la sección pedida —y sólo esa— y conserva sus tarjetas.
             ShowTab(snapshotsIndex);
-            bool switchOk = _selectedTab == snapshotsIndex
+            bool snapshotsOk = _selectedTab == snapshotsIndex
                 && _snapshotsPane.Visibility == Visibility.Visible
                 && _tabButtons[snapshotsIndex].IsChecked == true
                 && _tabPanes.Where((pane, i) => i != snapshotsIndex)
                     .All(pane => pane.Visibility == Visibility.Collapsed)
                 && _snapshotsHost.Children.Count == cards;
-            return (cards, diffRows, switchOk && separatedOk);
+
+            ShowTab(inputsIndex);
+            bool inputsOk = inputsIndex >= 0
+                && _selectedTab == inputsIndex
+                && _inputsPane?.Visibility == Visibility.Visible
+                && _tabButtons[inputsIndex]?.IsChecked == true
+                && _tabPanes.Where((pane, i) => i != inputsIndex)
+                    .All(pane => pane?.Visibility == Visibility.Collapsed);
+
+            ShowTab(outputsIndex);
+            bool outputsOk = outputsIndex >= 0
+                && _selectedTab == outputsIndex
+                && _outputsPane?.Visibility == Visibility.Visible
+                && _tabButtons[outputsIndex]?.IsChecked == true
+                && _tabPanes.Where((pane, i) => i != outputsIndex)
+                    .All(pane => pane?.Visibility == Visibility.Collapsed);
+
+            return (cards, diffRows, snapshotsOk && inputsOk && outputsOk && separatedOk);
         }
         finally
         {

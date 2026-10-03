@@ -308,7 +308,8 @@ public class WorkflowExecutor
                     await WaitIfPausedAsync(cancellationToken);
                     var runItem = initialItem != null ? initialItem.DeepClone() : new FileItemContext(string.Empty);
                     runItem.Metadata["WorkflowExecutionId"] = _currentExecutionId;
-                    if (!string.IsNullOrWhiteSpace(GlobalOutputDir)) runItem.Metadata["GlobalOutputDir"] = GlobalOutputDir;
+                    string effectiveGlobal = !string.IsNullOrWhiteSpace(GlobalOutputDir) ? GlobalOutputDir : AppPaths.DefaultGlobalOutputDir;
+                    if (!string.IsNullOrWhiteSpace(effectiveGlobal)) runItem.Metadata["GlobalOutputDir"] = effectiveGlobal;
                     string effectiveTemp = !string.IsNullOrWhiteSpace(TemporaryDirectory) ? TemporaryDirectory : AppPaths.DefaultTempDirectory;
                     runItem.Metadata["TemporaryDirectory"] = effectiveTemp;
                     if (IsDryRun) runItem.Metadata["DryRun"] = true;
@@ -367,7 +368,8 @@ public class WorkflowExecutor
 
             var completionDummy = new FileItemContext(string.Empty);
             completionDummy.Metadata["WorkflowExecutionId"] = _currentExecutionId;
-            if (!string.IsNullOrWhiteSpace(GlobalOutputDir)) completionDummy.Metadata["GlobalOutputDir"] = GlobalOutputDir;
+            string effectiveGlobalCompletion = !string.IsNullOrWhiteSpace(GlobalOutputDir) ? GlobalOutputDir : AppPaths.DefaultGlobalOutputDir;
+            if (!string.IsNullOrWhiteSpace(effectiveGlobalCompletion)) completionDummy.Metadata["GlobalOutputDir"] = effectiveGlobalCompletion;
             string effectiveTempCompletion = !string.IsNullOrWhiteSpace(TemporaryDirectory) ? TemporaryDirectory : AppPaths.DefaultTempDirectory;
             completionDummy.Metadata["TemporaryDirectory"] = effectiveTempCompletion;
             if (IsDryRun) completionDummy.Metadata["DryRun"] = true;
@@ -526,7 +528,8 @@ public class WorkflowExecutor
                 {
                     var itemClone = item.DeepClone();
                     itemClone.Metadata["WorkflowExecutionId"] = _currentExecutionId;
-                    if (!string.IsNullOrWhiteSpace(GlobalOutputDir)) itemClone.Metadata["GlobalOutputDir"] = GlobalOutputDir;
+                    string effectiveGlobalWatch = !string.IsNullOrWhiteSpace(GlobalOutputDir) ? GlobalOutputDir : AppPaths.DefaultGlobalOutputDir;
+                    if (!string.IsNullOrWhiteSpace(effectiveGlobalWatch)) itemClone.Metadata["GlobalOutputDir"] = effectiveGlobalWatch;
                     string effectiveTempWatch = !string.IsNullOrWhiteSpace(TemporaryDirectory) ? TemporaryDirectory : AppPaths.DefaultTempDirectory;
                     itemClone.Metadata["TemporaryDirectory"] = effectiveTempWatch;
                     if (IsDryRun) itemClone.Metadata["DryRun"] = true;

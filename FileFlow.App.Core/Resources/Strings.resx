@@ -822,11 +822,16 @@
   <data name="Log_PreviewButton" xml:space="preserve"><value>👁️ Preview</value></data>
 
   <!-- Quick Previewer -->
-  <data name="Preview_MetadataSheet" xml:space="preserve"><value>🏷️ Metadata Sheet</value></data>
+  <data name="Preview_MetadataSheet" xml:space="preserve"><value>📋 Metadata Sheet</value></data>
   <data name="Preview_CopyPath" xml:space="preserve"><value>📋 Copy Path</value></data>
-  <data name="Preview_OpenExplorer" xml:space="preserve"><value>📂 Open in Explorer</value></data>
+  <data name="Preview_OpenExplorer" xml:space="preserve"><value>📁 Open in Explorer</value></data>
+  <data name="Preview_OpenFile" xml:space="preserve"><value>🚀 Open File</value></data>
   <data name="Preview_Close" xml:space="preserve"><value>Close (Esc)</value></data>
   <data name="Preview_NoValidFile" xml:space="preserve"><value>No valid file generated or selected to preview.</value></data>
+  <data name="Preview_Lines" xml:space="preserve"><value>Lines: {0} · Characters: {1}</value></data>
+  <data name="Preview_Truncated" xml:space="preserve"><value>(Showing first {0} KB)</value></data>
+  <data name="Preview_NoMetadata" xml:space="preserve"><value>No additional metadata recorded.</value></data>
+  <data name="Preview_GenericBinaryDesc" xml:space="preserve"><value>Direct visual preview is not available for this binary file format.</value></data>
 
   <!-- Dialog Messages -->
   <data name="Msg_WatchModeNoSource" xml:space="preserve"><value>No existing source folders found in workflow nodes (e.g. FolderSourceNode).&#xA;Please configure an input folder before starting Watchdog Mode.</value></data>

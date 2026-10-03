@@ -22,6 +22,145 @@
 
 ## Ventana viva
 
+## [2026-10-03] - Hito 320: Implementación del Previsualizador Visual de Archivos en el Host Uno y Conexión de Botón «Ver»
+
+### 🎯 El encargo
+«el boton ver de la pestaña de entradas o salidas que deberia hacer una previsualizacion del archivo que se esta tratando no funciona.»
+
+### 🔬 El diagnóstico
+1. **Canal desatendido en el host**: Al hacer clic en el botón «Ver» de un snapshot en [`NodeInspectorPanel.xaml.cs`](file:///FileFlow.App.Uno/Controls/NodeInspectorPanel.xaml.cs) (o desde la consola de registros [`LogViewModel.cs`](file:///FileFlow.App.Core/ViewModels/LogViewModel.cs)), se ejecutaba la orden `PreviewSpecificSnapshotCommand` en [`NodeInspectorViewModel.cs`](file:///FileFlow.App.Core/ViewModels/NodeInspectorViewModel.cs), la cual invocaba `HostUi.ShowFilePreview(new FilePreviewRequest(...))`.
+2. **Cero suscriptores a `HostUi.FilePreviewRequested`**: En [`FileFlow.App.Core/HostUi.cs`](file:///FileFlow.App.Core/HostUi.cs), el evento `FilePreviewRequested` existía pero no contaba con ningún suscriptor en `FileFlow.App.Uno` (comentario en `App.xaml.cs`: `vista previa sin ventana`). Como consecuencia, la solicitud de vista previa caía silenciosamente en un no-op sin mostrar nada en pantalla.
+3. **Ausencia de superficie visual en el host**: El host Uno carecía de una vista modal y control especializado para representar el `FilePreviewContext`, gestionar hermanos (siblings) o conmutar entre archivo original y procesado.
+
+### 🧱 Las piezas
+- **`FileFlow.App.Uno/Platform/UnoFilePreviewHost.cs`**:
+  - Nuevo puente que suscribe a `HostUi.FilePreviewRequested`.
+  - Verifica de forma segura la presencia de `XamlRoot` en la ventana principal y la inexistencia de diálogos activos en pantalla (concurrencia hermética en WinUI 3).
+  - Aloja el previsualizador dentro de un `ContentDialog` con identificador de automatización `FilePreviewDialog`, ancho adaptativo (hasta 1100x850 px) y control de cierre modal garantizado vía `UnoWindowService.RunOwnedAsync()`.
+- **`FileFlow.App.Uno/Controls/FilePreviewDialogBody.xaml` y `.xaml.cs`**:
+  - **Cabecera rica y contextual**: Identidad del archivo, nombre con recorte elíptico, insignias estilizadas de extensión (`.PNG`, `.TXT`, etc.), peso formateado (`KB`, `MB`), dimensiones (`px`) y selector segmentado «Procesado» vs «Original» cuando `HasOriginalComparison` está activo.
+  - **Navegación secuencial de hermanos**: Botones `<` y `>` y contador interactivo (`1 de 5`) para explorar todos los snapshots de la ejecución sin cerrar el modal.
+  - **Visor polimórfico de contenido**:
+    - *Imágenes* (`.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.gif`, `.ico`, `.svg`): Renderizado nativo vía `BitmapImage` con ajuste visual `Stretch.Uniform` y lectura reactiva de dimensiones en `ImageOpened`.
+    - *Texto y código* (`.txt`, `.json`, `.csv`, `.log`, `.md`, `.cs`, `.py`, `.yaml`, etc.): Visor de sólo lectura en tipografía monoespaciada (`Consolas`/`Cascadia Code`), lectura asíncrona segura hasta 200 KB, recuento de líneas y caracteres, y banner de aviso ante truncado.
+    - *Archivos genéricos / binarios* (`.pdf`, `.mp4`, `.zip`, etc.): Tarjeta descriptiva con icono temático, tamaño, fechas de creación/modificación y botón directo de apertura externa.
+  - **Ficha de metadatos lateral**: Lista organizada de pares clave-valor que expone etiquetas de IA, dimensiones, propiedades EXIF y OCR registrados en el contexto del archivo.
+  - **Barra de acciones inferior**: Ruta física completa, botones rápidos «Copiar Ruta», «Explorador» (con `/select`), «Abrir Archivo» con la aplicación predeterminada del sistema y «Cerrar».
+- **`FileFlow.App.Uno/App.xaml.cs`**:
+  - Enlazado `HostUi.FilePreviewRequested` despachando al hilo de interfaz de usuario mediante `IUiDispatcher`.
+- **`FileFlow.App.Core/Resources/Strings.resx` y `Strings.es.resx`**:
+  - Incorporadas cadenas multilingües de acciones y estadísticas (`Preview_OpenFile`, `Preview_Lines`, `Preview_Truncated`, `Preview_NoMetadata`, `Preview_GenericBinaryDesc`).
+- **`FileFlow.Tests/Unit/App/FilePreviewTests.cs`**:
+  - Suite de pruebas unitarias que valida la emisión del evento en `HostUi`, la conversión fiel desde `FileItemContext`, la detección precisa de `HasOriginalComparison` y la preservación de hermanos y propietario.
+
+### 📊 Verificación y Métricas
+- `dotnet build FileFlow.App.Uno`: Compilación 100% exitosa sin errores.
+- `dotnet test --filter FilePreviewTests`: 4 pruebas ejecutadas, 4 superadas (100%).
+- `dotnet test --filter UiIconographyTests`: 3 pruebas ejecutadas, 3 superadas (100% libre de pictogramas no permitidos).
+- `dotnet test --filter ExampleFlowsEndToEndTests`: 4 pruebas superadas.
+- `.\run.ps1 -SelfCheck`: Verificado con código 0 (83 comprobaciones de lienzo y paneles validadas con éxito).
+
+---
+
+## [2026-10-03] - Hito 319: Corrección de Crash en Pestaña de Salidas del Inspector por Doble Adscripción Visual de Tarjetas
+
+### 🎯 El encargo
+«al hacer una prueba con un nodo en este caso el de carpeta destino y activar la pestaña de salida en el inspector la aplicacion se cierra. analiza el problema»
+
+### 🔬 El diagnóstico
+1. **Doble inserción en el árbol visual de XAML**: En [`NodeInspectorPanel.xaml.cs`](file:///FileFlow.App.Uno/Controls/NodeInspectorPanel.xaml.cs), dentro del método `BuildSnapshotCard`, la cabecera de la tarjeta (`header`, un `Grid` con las etiquetas de puerto, timestamp, ruta de archivo y botón «Ver») se agregaba primero a los hijos directos del contenedor raíz: `root.Children.Add(header);`. Posteriormente, se instanciaba el control `Expander` y se le asignaba la misma cabecera como su cabecera visual: `expander.Header = header;`, añadiendo finalmente el `Expander` también a `root.Children.Add(expander);`.
+2. **Conflicto fatal en el pase de layout de WinUI 3**: Al realizar una prueba aislada (`TestNodeWithCustomFileAsync`) en cualquier nodo (como `DestinationSinkNode`), se genera un snapshot de salida que invoca `RebuildOutputCards()`. Mientras la pestaña activa era «Parámetros» (pestaña 0), el contenedor `_outputsPane` permanecía con `Visibility.Collapsed`, por lo que WinUI 3 no materializaba ni evaluaba la plantilla de los hijos.
+3. **Causa del cierre/crash**: Al hacer clic en la pestaña «Salidas» (o «Snapshots»), `ShowTab(3)` establecía `_outputsPane.Visibility = Visibility.Visible`. El motor de composición de WinUI 3 ejecutaba de inmediato el pase de medición y maquetación (`Measure`/`Arrange`) del `Expander`. El `ContentPresenter` interno del `Expander` intentaba asignar `header` a su propiedad `ContentControl.Content`. Al tener `header` ya un padre visual asignado (`header.Parent == root`), el subsistema nativo de XAML lanzaba de forma irrecuperable:
+   `Failed to assign to property 'Microsoft.UI.Xaml.Controls.ContentControl.Content'. [Line: 0 Position: 0]`
+   provocando la terminación inmediata del proceso (crash fatal sin captura gestionada).
+
+### 🧱 Las piezas
+- **`FileFlow.App.Uno/Controls/NodeInspectorPanel.xaml.cs`**:
+  - Eliminada la adscripción duplicada `root.Children.Add(header);`. Ahora `header` pertenece única y exclusivamente al `expander.Header`.
+  - Configurado `HorizontalContentAlignment = HorizontalAlignment.Stretch` en el `Expander` para que la cuadrícula de cabecera aproveche limpiamente todo el ancho disponible del panel.
+- **`FileFlow.App.Uno/Controls/NodeInspectorPanel.Probes.cs`**:
+  - Ampliado `ProbeSnapshotTabs()` para sondear en tiempo de ejecución no solo la pestaña de Snapshots combinada, sino también las pestañas de «Entradas» (`InspectorTabInputs`) y «Salidas» (`InspectorTabOutputs`), verificando conmutación y visibilidad sin excepciones.
+- **`FileFlow.App.Uno/SelfCheckPanels.cs`**:
+  - La sonda de panels del selfcheck ahora puebla tanto un snapshot de entrada (`CreateInput`) como uno de salida (`CreateOutput`), garantizando que la materialización completa de tarjetas de salida sea evaluada y protegida en cada sondeo automatizado.
+
+### 📊 Verificación y Métricas
+- `selfcheck-crash.txt`: Verificado ausente / sin registros de excepciones.
+- `dotnet test`: 1.775 pruebas ejecutadas, 1.774 correctas (100%), 0 errores, 1 omitida.
+- `.\run.ps1 -SelfCheck`: Verificado con código 0 (83 comprobaciones de lienzo y paneles validadas con éxito).
+
+---
+
+## [2026-10-03] - Hito 318: Resolución Dinámica y Reactiva de {GlobalOutputDir} desde los Ajustes del Usuario
+
+### 🎯 El encargo
+«la variable {GlobalOutputDir} no contiene el valor que esta puesto en ajustes.»
+
+### 🔬 El diagnóstico
+1. **Desconexión entre el valor de Ajustes y la evaluación en lienzo**: En [`NodeParameterViewModel.cs`](file:///FileFlow.App.Core/ViewModels/NodeParameterViewModel.cs), el método `RecalculateEvaluatedValue` generaba un `FileItemContext` vacío cuando el nodo no tenía ejecución previa. Como este contexto carecía de la clave `GlobalOutputDir` en su diccionario de metadatos, [`ParameterHelper.FlowOutputFolder`](file:///FileFlow.Sdk/ParameterHelper.cs) devolvía `null` y [`SystemVariablesResolver.cs`](file:///FileFlow.Sdk/TemplateEngine/SystemVariablesResolver.cs) recurría a `AppPaths.DefaultGlobalOutputDir`, resolviendo siempre la ruta del sistema (`Documents/FileFlowStudio/Output`) en lugar de la carpeta configurada por el usuario en Ajustes.
+2. **Falta de reactividad ante cambios en Ajustes**: Al guardar una nueva ruta de salida en la superficie de Ajustes ([`WorkflowSettingsViewModel.cs`](file:///FileFlow.App.Core/ViewModels/WorkflowSettingsViewModel.cs)), `EditorViewModel.GlobalOutputDir` actualizaba su propiedad, pero no notificaba ni recalculaba los parámetros de los nodos colocados en el lienzo, dejando las etiquetas de previsualización (`EvaluatedValue`) congeladas en el valor antiguo.
+3. **Muestras estáticas en catálogo y barra de estado**: [`VariableDiscoveryService.cs`](file:///FileFlow.App.Core/Services/VariableDiscoveryService.cs), [`TextEditorDialogViewModel.cs`](file:///FileFlow.App.Core/ViewModels/TextEditorDialogViewModel.cs) y [`StatusBarViewModel.cs`](file:///FileFlow.App.Core/ViewModels/StatusBarViewModel.cs) utilizaban directamente la constante base del SDK en lugar de consultar las preferencias persistidas en [`UserPreferencesService`](file:///FileFlow.App.Core/Services/UserPreferencesService.cs).
+4. **Contexto de prueba aislada**: En [`NodeInspectorViewModel.cs`](file:///FileFlow.App.Core/ViewModels/NodeInspectorViewModel.cs), `TestNodeWithCustomFileAsync` inicializaba un ítem para la ejecución aislada sin inyectar la ruta global configurada.
+
+### 🧱 Las piezas
+- **`FileFlow.App.Core/ViewModels/NodeParameterViewModel.cs`**:
+  - En `RecalculateEvaluatedValue()`, si el contexto de evaluación no contiene la clave `"GlobalOutputDir"`, se clona de forma segura (sin mutar los metadatos de los snapshots históricos) y se inyecta la ruta resuelta desde el editor anfitrión (`ResolveEditor()?.GlobalOutputDir`) o desde las preferencias persistidas (`UserPreferencesService.Instance.Preferences.DefaultGlobalOutputDir`).
+- **`FileFlow.App.Core/ViewModels/EditorViewModel.cs`**:
+  - Implementado `partial void OnGlobalOutputDirChanged(string value)` que recorre de forma reactiva todas las tarjetas del grafo y llama a `p.RecalculateEvaluatedValue()` en cada parámetro.
+  - En `LoadFromGraphModel()`, si el flujo cargado no especifica una salida propia en `graph.GlobalOutputDir`, se restablece limpiamente a las preferencias del usuario.
+- **`FileFlow.App.Core/ViewModels/NodeInspectorViewModel.cs`**:
+  - Suscripción al cambio de `GlobalOutputDir` en el `EditorViewModel` para refrescar los parámetros inspeccionados en caliente.
+  - Inyección de `GlobalOutputDir` en el ítem de prueba aislada en `TestNodeWithCustomFileAsync()`.
+- **`FileFlow.App.Core/Services/VariableDiscoveryService.cs`, `TextEditorDialogViewModel.cs`, `StatusBarViewModel.cs`**:
+  - Actualizados para consultar `UserPreferencesService.Instance.Preferences.DefaultGlobalOutputDir` con fallback transparente a `AppPaths.DefaultGlobalOutputDir`.
+- **`FileFlow.App.Core/Services/WorkflowExecutionCoordinator.cs`**:
+  - Asegurado el fallback a `_prefs.Preferences.DefaultGlobalOutputDir` en caso de que el editor no contenga una ruta explícita.
+- **`FileFlow.Tests/Unit/ViewModels/NodeParameterViewModelTests.cs`**:
+  - Incorporada prueba unitaria `EvaluatedValue_WithGlobalOutputDirToken_ResolvesToCustomEditorOrPreferencesSetting`.
+
+### 📊 Verificación y Métricas
+- `dotnet test`: 1.775 pruebas ejecutadas, 1.774 correctas (100%), 0 errores, 1 omitida.
+- `NodeParameterViewModelTests` y `NodeInspectorViewModelTests`: 25/25 pruebas superadas con éxito.
+- `.\run.ps1 -SelfCheck`: Verificado con código de salida 0 (lienzo y componentes validados).
+
+---
+
+
+## [2026-10-03] - Hito 317: Corrección de Carga de Parámetros de Carpeta, Sincronización de Diálogos y Botón de Restauración Canónica
+
+### 🎯 El encargo
+«los parametros de carpeta no funcionan bien. Al cargar un flujo en el imput de los parametros de carpetas siempre sale el placeholder y no la ruta guardada. tmpoco se actualiza siempre al elejirla. creo que lo mejor seria eliminar el placeholder y hacer que el parametro por defecto este como dato del imput. dame opciones» -> Selección: Opción 3 (Valor por defecto explícito + Menú/botón para restablecer a valor por defecto).
+
+### 🔬 El diagnóstico
+1. **Falta de inicialización de `box.Text` en el Inspector**: Al materializar las filas de parámetros en [`NodeInspectorPanel.xaml.cs`](file:///FileFlow.App.Uno/Controls/NodeInspectorPanel.xaml.cs), `WireBoxToParameter` asignaba `box.PlaceholderText = p.Placeholder;`, pero omitía inicializar `box.Text = p.Value?.ToString() ?? string.Empty;`. Como `box.Text` nacía vacío (`""`), WinUI mostraba el texto del placeholder en lugar de la ruta guardada en el flujo o el valor por defecto configurado.
+2. **Bloqueo y conflicto cross-thread en el selector de carpetas**:
+   - [`UnoFileDialogService.cs`](file:///FileFlow.App.Uno/Platform/UnoFileDialogService.cs) ejecutaba `PickSingleFolderAsync().AsTask().GetAwaiter().GetResult()` bloqueando síncronamente el hilo de UI dentro de `TryEnqueue`, lo que congelaba o abortaba el selector de WinRT.
+   - Al resolverse la tarea en un hilo de fondo, [`NodeParameterViewModel.Pickers.cs`](file:///FileFlow.App.Core/ViewModels/NodeParameterViewModel.Pickers.cs) asignaba `Value = picked` sin asegurar el hilo de UI, provocando que WinUI descartara o fallara la actualización de `box.Text`.
+3. **Falta de opción para restablecer al valor canónico**: Si el usuario alteraba o borraba la ruta de salida/carpeta, no existía una vía directa para restablecer al valor predeterminado del nodo o la variable canónica (`{GlobalOutputDir}`, `{TempDir}/intermediate`, etc.).
+
+### 🧱 Las piezas
+- **`FileFlow.App.Uno/Controls/NodeInspectorPanel.xaml.cs`**:
+  - Inicializado `box.Text = p.Value?.ToString() ?? string.Empty;` en `WireBoxToParameter`.
+  - Asegurado el despacho de actualizaciones en hilo de UI mediante `box.DispatcherQueue.TryEnqueue` en `OnParameterChanged`.
+  - Añadido botón «↺» (`ParamReset_<Key>`) en la fila de explorador de rutas con tooltip localizado `Uno_InspectorResetDefault`, atado a `p.ResetToDefaultCommand`.
+- **`FileFlow.App.Uno/Platform/UnoFileDialogService.cs`**:
+  - `EnqueueOnUiAsync` reescrito con patrón puramente asíncrono (`Func<Window, Task<string?>>`) sin llamadas bloqueantes `.GetAwaiter().GetResult()` en el hilo de UI.
+- **`FileFlow.App.Core/ViewModels/NodeParameterViewModel.cs`**:
+  - Incorporada propiedad `DefaultValue` que resuelve el valor por defecto del descriptor o infiere el valor implícito según el tipo de carpeta (`{GlobalOutputDir}`, `{TempDir}/intermediate`, etc.).
+  - Incorporado comando `ResetToDefaultCommand` (`[RelayCommand]`) despachado con `_uiDispatcher.Post`.
+- **`FileFlow.App.Core/ViewModels/NodeParameterViewModel.Pickers.cs`**:
+  - En `BrowsePathAsync()`, asegurada la asignación de `Value = picked` en el hilo de UI con `_uiDispatcher.Post`.
+- **`FileFlow.App.Uno/Resources/Strings.resx` y `Strings.es.resx`**:
+  - Añadidas las cadenas de localización `Uno_InspectorResetDefault` y `Param_Browse_ToolTip`.
+- **`FileFlow.Tests/Unit/ViewModels/NodeParameterViewModelTests.cs`**:
+  - Añadidas pruebas unitarias para `ResetToDefaultCommand` y resolución de valores canónicos por defecto.
+
+### 📊 Verificación y Métricas
+- `dotnet test`: 1.773 pruebas superadas al 100% (0 fallos, 1 omitida).
+- `UnoInspectorPanelGuardTests` y `UnoNodeDialogCatalogGuardTests`: 15/15 superadas.
+- `.\run.ps1 -SelfCheck`: Verificado con código de salida 0 (83 comprobaciones de lienzo y paneles OK).
+
+---
+
 ## [2026-10-02] - Hito 316: Modernización y Unificación Centralizada del Almacenamiento de Datos de la Aplicación (`AppPaths`)
 
 ### 🎯 El encargo

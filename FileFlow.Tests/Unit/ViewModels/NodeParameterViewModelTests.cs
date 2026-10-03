@@ -300,6 +300,53 @@ public class NodeParameterViewModelTests : IDisposable
         HostUiTestHelper.SetCultureOnUI("es-ES");
     }
 
+    [Fact]
+    public void ResetToDefault_ShouldRestoreDescriptorDefaultValue_WhenChanged()
+    {
+        EnsureClipboardHost();
+        var desc = new NodeParameterDescriptor("OutputDirectory", ParameterEditorType.FolderPath, DefaultValue: "{GlobalOutputDir}");
+        using var param = new NodeParameterViewModel(desc, "C:\\Custom\\Folder");
+
+        param.Value.Should().Be("C:\\Custom\\Folder");
+        param.ResetToDefaultCommand.Execute(null);
+        param.Value.Should().Be("{GlobalOutputDir}");
+    }
+
+    [Fact]
+    public void ResetToDefault_ShouldRestoreCanonicalFolderDefault_WhenDescriptorDefaultIsEmpty()
+    {
+        EnsureClipboardHost();
+        var desc = new NodeParameterDescriptor("OutputDirectory", ParameterEditorType.FolderPath, DefaultValue: "");
+        using var param = new NodeParameterViewModel(desc, "C:\\Custom\\Path");
+
+        param.Value.Should().Be("C:\\Custom\\Path");
+        param.ResetToDefaultCommand.Execute(null);
+        param.Value.Should().Be("{TempDir}/intermediate");
+    }
+
+    [Fact]
+    public void ResetToDefault_ShouldRestoreQuarantineDefault_ForQuarantineFolder()
+    {
+        EnsureClipboardHost();
+        var desc = new NodeParameterDescriptor("QuarantineFolder", ParameterEditorType.FolderPath, DefaultValue: "");
+        using var param = new NodeParameterViewModel(desc, "C:\\Other\\Path");
+
+        param.ResetToDefaultCommand.Execute(null);
+        param.Value.Should().Be(@"{RelativeDir}\Quarantine");
+    }
+
+    [Fact]
+    public void EvaluatedValue_WithGlobalOutputDirToken_ResolvesToCustomEditorOrPreferencesSetting()
+    {
+        EnsureClipboardHost();
+        var desc = new NodeParameterDescriptor("TargetFolder", ParameterEditorType.FolderPath, DefaultValue: "{GlobalOutputDir}");
+        using var param = new NodeParameterViewModel(desc, "{GlobalOutputDir}");
+
+        param.EvaluatedValue.Should().NotBe("{GlobalOutputDir}");
+        param.EvaluatedValue.Should().NotBeEmpty();
+        param.HasExpression.Should().BeTrue();
+    }
+
     /// <summary>
     /// Arranca la sesión headless de forma explícita antes de copiar.
     ///

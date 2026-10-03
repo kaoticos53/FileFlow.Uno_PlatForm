@@ -822,11 +822,16 @@
   <data name="Log_PreviewButton" xml:space="preserve"><value>👁️ Vista Previa</value></data>
 
   <!-- Quick Previewer -->
-  <data name="Preview_MetadataSheet" xml:space="preserve"><value>🏷️ Ficha de Metadatos</value></data>
+  <data name="Preview_MetadataSheet" xml:space="preserve"><value>📋 Ficha de Metadatos</value></data>
   <data name="Preview_CopyPath" xml:space="preserve"><value>📋 Copiar Ruta</value></data>
-  <data name="Preview_OpenExplorer" xml:space="preserve"><value>📂 Explorador</value></data>
+  <data name="Preview_OpenExplorer" xml:space="preserve"><value>📁 Explorador</value></data>
+  <data name="Preview_OpenFile" xml:space="preserve"><value>🚀 Abrir Archivo</value></data>
   <data name="Preview_Close" xml:space="preserve"><value>Cerrar (Esc)</value></data>
   <data name="Preview_NoValidFile" xml:space="preserve"><value>No hay un archivo válido generado o seleccionado para previsualizar.</value></data>
+  <data name="Preview_Lines" xml:space="preserve"><value>Líneas: {0} · Caracteres: {1}</value></data>
+  <data name="Preview_Truncated" xml:space="preserve"><value>(Mostrando los primeros {0} KB)</value></data>
+  <data name="Preview_NoMetadata" xml:space="preserve"><value>Sin metadatos adicionales registrados.</value></data>
+  <data name="Preview_GenericBinaryDesc" xml:space="preserve"><value>La previsualización directa no está disponible para este formato de archivo binario.</value></data>
 
   <!-- Dialog Messages -->
   <data name="Msg_WatchModeNoSource" xml:space="preserve"><value>No se encontraron carpetas de origen existentes configuradas en los nodos del flujo (ej. FolderSourceNode).&#xA;Configure una carpeta de entrada antes de activar el Modo Vigilante.</value></data>

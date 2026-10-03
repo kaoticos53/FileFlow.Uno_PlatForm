@@ -13,6 +13,96 @@ Este documento se actualiza al finalizar cada sesión de trabajo para consolidar
 
 ## 0. Hito más reciente
 
+- **320. Implementación del Previsualizador Visual de Archivos en el Host Uno y Activación del Botón «Ver» (2026-10-03)**:
+  - **El encargo**: «el boton ver de la pestaña de entradas o salidas que deberia hacer una previsualizacion del archivo que se esta tratando no funciona.»
+  - **🔬 Diagnóstico**:
+    - Al pulsar el botón «Ver» en cualquier tarjeta de snapshot de las pestañas «Entradas», «Salidas» o «Snapshots» del inspector (o desde los registros en `LogViewModel`), `NodeInspectorViewModel.PreviewSpecificSnapshotCommand` invocaba correctamente `HostUi.ShowFilePreview(new FilePreviewRequest(...))`.
+    - En el host Uno (`App.xaml.cs`), el evento `HostUi.FilePreviewRequested` carecía de suscriptores (tenía un comentario indicando `vista previa sin ventana`). La petición era ignorada en silencio como un no-op.
+    - El host carecía de una vista modal y control especializado para representar el `FilePreviewContext`, gestionar hermanos (snapshots de la ejecución) o alternar entre el archivo original y el procesado.
+  - **🧱 Acciones**:
+    - `FileFlow.App.Uno/Controls/FilePreviewDialogBody.xaml` y `.xaml.cs`:
+      - Diseñado e implementado el diálogo modal completo de previsualización (hasta 1100x850 px).
+      - **Cabecera rica**: Nombre de archivo con tooltip, insignias temáticas de extensión, peso formateado (`KB`, `MB`), dimensiones en píxeles y conmutador segmentado «Procesado» vs «Original» cuando `HasOriginalComparison` está activo.
+      - **Navegador de hermanos**: Botones `<` y `>` y contador interactivo (`1 de 5`) para desplazarse por todos los snapshots del nodo sin cerrar la ventana.
+      - **Visor polimórfico de contenido**:
+        - *Imágenes* (`.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.gif`, `.ico`, `.svg`): Renderizado nativo vía `BitmapImage` con centrado y captura de dimensiones en `ImageOpened`.
+        - *Texto y código* (`.txt`, `.json`, `.csv`, `.log`, `.md`, `.cs`, `.py`, `.yaml`, etc.): Visor de sólo lectura en tipografía monoespaciada, lectura asíncrona segura hasta 200 KB, recuento reactivo de líneas y caracteres, y badge de aviso ante truncado.
+        - *Archivos genéricos / binarios* (`.pdf`, `.mp4`, `.zip`, etc.): Tarjeta descriptiva con icono temático, tamaño, fechas de creación/modificación y botón de apertura externa.
+      - **Ficha de metadatos lateral**: Lista organizada de pares clave-valor que expone etiquetas de IA, dimensiones, propiedades EXIF y OCR registrados en el contexto del archivo.
+      - **Barra de acciones inferior**: Ruta física completa, botones rápidos «Copiar Ruta», «Explorador» (con `/select`), «Abrir Archivo» con la aplicación predeterminada del sistema y «Cerrar».
+    - `FileFlow.App.Uno/Platform/UnoFilePreviewHost.cs`:
+      - Suscripción limpia y desacoplada a `HostUi.FilePreviewRequested` despachada en el hilo de interfaz de usuario.
+      - Comprobación de `XamlRoot` y ausencia de otros diálogos abiertos antes de instanciar el `ContentDialog` con identificador de automatización `FilePreviewDialog`, abriéndolo mediante `UnoWindowService.RunOwnedAsync()`.
+    - `FileFlow.App.Uno/App.xaml.cs`:
+      - Conectado `HostUi.FilePreviewRequested` a `UnoFilePreviewHost.ShowPreviewAsync(request)`.
+    - `FileFlow.App.Core/Resources/Strings.resx` y `Strings.es.resx`:
+      - Añadidas claves multilingües normalizadas (`Preview_OpenFile`, `Preview_Lines`, `Preview_Truncated`, `Preview_NoMetadata`, `Preview_GenericBinaryDesc`).
+    - `FileFlow.Tests/Unit/App/FilePreviewTests.cs`:
+      - Nueva suite de 4 pruebas unitarias cubriendo emisión de evento en `HostUi`, mapeo fiel de contexto, cálculo de `HasOriginalComparison` y preservación de hermanos y propietario.
+  - **📊 Validación**:
+    - `dotnet build FileFlow.App.Uno`: **0 errores**.
+    - `dotnet test --filter FilePreviewTests`: **4/4 superadas (100%)**.
+    - `dotnet test --filter UiIconographyTests`: **3/3 superadas (100%)**.
+    - `.\run.ps1 -SelfCheck`: **Código 0 (83 comprobaciones de lienzo y paneles validadas con éxito)**.
+
+- **319. Corrección de Crash en Pestaña de Salidas del Inspector por Doble Adscripción Visual de Tarjetas (2026-10-03)**:
+  - **El encargo**: «al hacer una prueba con un nodo en este caso el de carpeta destino y activar la pestaña de salida en el inspector la aplicacion se cierra. analiza el problema»
+  - **🔬 Diagnóstico**:
+    - En `NodeInspectorPanel.xaml.cs` (`BuildSnapshotCard`), la cabecera `header` (un `Grid` con las etiquetas de puerto, timestamp, ruta de archivo y botón «Ver») se agregaba primero a `root.Children.Add(header);`. Luego se asignaba al `Expander` mediante `expander.Header = header;` y se agregaba también el expander a `root.Children.Add(expander);`.
+    - Al probar de forma aislada un nodo (como `DestinationSinkNode`), se genera un snapshot de salida que invoca `RebuildOutputCards()`. Mientras la pestaña visible era «Parámetros», `_outputsPane` estaba en `Visibility.Collapsed`.
+    - Al pulsar la pestaña «Salidas», `ShowTab(3)` pasaba `_outputsPane` a `Visibility.Visible`. El pase de maquetación de WinUI 3 intentaba asignar `header` al `ContentPresenter.Content` del `Expander`. Al tener `header` ya un padre visual (`root`), el motor nativo de XAML arrojaba la excepción fatal `Failed to assign to property 'Microsoft.UI.Xaml.Controls.ContentControl.Content'`, provocando el cierre abrupto de la aplicación.
+  - **🧱 Acciones**:
+    - `FileFlow.App.Uno/Controls/NodeInspectorPanel.xaml.cs`: eliminada la adscripción duplicada `root.Children.Add(header);` en `BuildSnapshotCard`, dejando a `header` única y exclusivamente dentro de `expander.Header`. Se configuró además `HorizontalContentAlignment = HorizontalAlignment.Stretch` en el `Expander` para asegurar el estiramiento visual correcto.
+    - `FileFlow.App.Uno/Controls/NodeInspectorPanel.Probes.cs`: ampliado `ProbeSnapshotTabs()` para sondear en tiempo de ejecución no solo la pestaña de snapshots combinada, sino también las pestañas de «Entradas» y «Salidas» verificando la conmutación y visibilidad sin excepciones.
+    - `FileFlow.App.Uno/SelfCheckPanels.cs`: enriquecido el sondeo del selfcheck para instanciar tanto un snapshot de entrada como uno de salida en el nodo inspeccionado de prueba.
+  - **📊 Validación**:
+    - `dotnet test`: **1.775 pruebas superadas al 100% (0 fallos, 1 omitida)**.
+    - `selfcheck-crash.txt`: **0 errores / archivo inexistente**.
+    - `.\run.ps1 -SelfCheck`: **Código 0 (83 comprobaciones de lienzo y paneles validadas con éxito)**.
+
+- **318. Resolución Dinámica y Reactiva de `{GlobalOutputDir}` desde Ajustes del Usuario (2026-10-03)**:
+  - **El encargo**: «la variable {GlobalOutputDir} no contiene el valor que esta puesto en ajustes.»
+  - **🔬 Diagnóstico**:
+    - En `NodeParameterViewModel.cs`, la evaluación en tiempo real (`RecalculateEvaluatedValue`) instanciaba un `FileItemContext` vacío cuando no había ejecución previa (`_activeEvaluationContext == null`). Al no contener `"GlobalOutputDir"` en sus metadatos, `ParameterHelper.FlowOutputFolder` devolvía `null` y `SystemVariablesResolver` caía en el valor de `AppPaths.DefaultGlobalOutputDir` (la carpeta de Documentos del sistema) en lugar de la ruta guardada en Ajustes (`UserPreferencesService.Preferences.DefaultGlobalOutputDir`).
+    - Al guardar una nueva ruta de salida en Ajustes (`WorkflowSettingsViewModel`), `EditorViewModel.GlobalOutputDir` actualizaba su valor, pero no disparaba el recálculo reactivo de los parámetros de los nodos colocados en el lienzo, dejando las etiquetas de previsualización (`EvaluatedValue`) congeladas en el valor antiguo.
+    - El catálogo de variables de muestra (`VariableDiscoveryService`, `TextEditorDialogViewModel` y `StatusBarViewModel`) leía directamente `AppPaths.DefaultGlobalOutputDir` en lugar de las preferencias persistidas.
+  - **🧱 Acciones**:
+    - `FileFlow.App.Core/ViewModels/NodeParameterViewModel.cs`: en `RecalculateEvaluatedValue()`, si el contexto de evaluación no tiene `GlobalOutputDir`, se clona de forma segura (sin mutar los metadatos de los snapshots históricos) y se puebla dinámicamente con `ResolveEditor()?.GlobalOutputDir ?? UserPreferencesService.Instance.Preferences.DefaultGlobalOutputDir`.
+    - `FileFlow.App.Core/ViewModels/EditorViewModel.cs`: implementado `partial void OnGlobalOutputDirChanged(string value)` que recorre de forma reactiva todas las tarjetas del lienzo y llama a `p.RecalculateEvaluatedValue()` en cada parámetro. En `LoadFromGraphModel`, si el grafo importado no declara salida propia, se restablece limpiamente a las preferencias del usuario.
+    - `FileFlow.App.Core/ViewModels/NodeInspectorViewModel.cs`: suscripción a `EditorViewModel.PropertyChanged` para el cambio de `GlobalOutputDir` para refrescar los parámetros inspeccionados en caliente; e inicialización de `GlobalOutputDir` en el ítem de prueba aislada en `TestNodeWithCustomFileAsync`.
+    - `FileFlow.App.Core/Services/VariableDiscoveryService.cs`, `TextEditorDialogViewModel.cs`, `StatusBarViewModel.cs`: actualizados para utilizar prioritariamente la ruta de salida de las preferencias de usuario (`DefaultGlobalOutputDir`).
+    - `FileFlow.App.Core/Services/WorkflowExecutionCoordinator.cs`: garantizado el fallback limpio a `_prefs.Preferences.DefaultGlobalOutputDir` si `_editorViewModel.GlobalOutputDir` estuviera vacío.
+    - `FileFlow.Tests/Unit/ViewModels/NodeParameterViewModelTests.cs`: incorporada prueba unitaria `EvaluatedValue_WithGlobalOutputDirToken_ResolvesToCustomEditorOrPreferencesSetting`.
+  - **📊 Validación**:
+    - `dotnet test`: **1.775 pruebas superadas al 100% (0 fallos, 1 omitida)**.
+    - `NodeParameterViewModelTests` y `NodeInspectorViewModelTests`: **25/25 pruebas superadas con éxito**.
+    - `.\run.ps1 -SelfCheck`: **Código 0 (83 comprobaciones de lienzo y paneles OK)**.
+
+- **317. Corrección de Carga de Parámetros de Carpeta, Sincronización de Diálogos y Botón de Restauración Canónica (2026-10-03)**:
+  - **El encargo**: «los parametros de carpeta no funcionan bien. Al cargar un flujo en el imput de los parametros de carpetas siempre sale el placeholder y no la ruta guardada. tmpoco se actualiza siempre al elejirla. creo que lo mejor seria eliminar el placeholder y hacer que el parametro por defecto este como dato del imput. dame opciones» -> Selección: Opción 3.
+  - **🔬 Diagnóstico**:
+    - `WireBoxToParameter` en `NodeInspectorPanel.xaml.cs` asignaba `box.PlaceholderText` pero no inicializaba `box.Text = p.Value?.ToString() ?? string.Empty;`. Por ello, al cargar cualquier flujo, `box.Text` empezaba en blanco (`""`) y WinUI mostraba el placeholder ocultando la ruta guardada o el valor por defecto.
+    - `UnoFileDialogService.ShowFolderBrowserDialogAsync` usaba `.GetAwaiter().GetResult()` bloqueando síncronamente el hilo de UI dentro de `TryEnqueue`, y `BrowsePathAsync` asignaba `Value = picked` sin asegurar el despacho en hilo de UI, provocando que WinUI descartara la actualización por conflicto cross-thread.
+    - Faltaba un comando/botón explícito para restablecer los parámetros a su valor predeterminado canónico (`{GlobalOutputDir}`, `{TempDir}/intermediate`, etc.).
+  - **🧱 Acciones**:
+    - `NodeInspectorPanel.xaml.cs`:
+      - `WireBoxToParameter`: inicializado `box.Text` con `p.Value` al crear el control y garantizado despacho seguro en hilo de UI (`UpdateOnUi`) ante eventos `PropertyChanged`.
+      - `BuildParameterRow`: incorporado botón «↺» (`ParamReset_<Key>`) en la fila de explorador con tooltip `Uno_InspectorResetDefault` para restablecer el valor canónico.
+    - `UnoFileDialogService.cs`:
+      - `EnqueueOnUiAsync` reescrito con `Func<Window, Task<string?>>` para procesar los selectores de archivo/carpeta de forma 100% asíncrona sin bloquear el hilo de UI.
+    - `NodeParameterViewModel.cs`:
+      - Añadida propiedad `DefaultValue` (descriptor o fallback de carpeta canónico) y comando `ResetToDefaultCommand` (`[RelayCommand]`).
+    - `NodeParameterViewModel.Pickers.cs`:
+      - Asegurado que `BrowsePathAsync` despache `Value = picked` mediante `_uiDispatcher.Post`.
+    - `Strings.resx` y `Strings.es.resx`:
+      - Añadidos recursos `Uno_InspectorResetDefault` y `Param_Browse_ToolTip`.
+    - `NodeParameterViewModelTests.cs`:
+      - Nuevas pruebas unitarias para `ResetToDefaultCommand` y resolución de valores canónicos por defecto.
+  - **📊 Validación**:
+    - `dotnet test`: **1.773 pruebas superadas al 100% (0 fallos, 1 omitida)**.
+    - `UnoInspectorPanelGuardTests` y `UnoNodeDialogCatalogGuardTests`: **15/15 superadas**.
+    - `.\run.ps1 -SelfCheck`: **Código 0 (83 comprobaciones OK)**.
+
 - **316. Modernización y Unificación Centralizada del Almacenamiento de Datos (`AppPaths`) (2026-10-02)**:
   - **El encargo**: «veo que los directorios donde la aplicacion guarda datos y los ajustes estan un poco dispersos. analiza donde se guardan actualmente los datos y propon un plan para unificarllo todo sigueindo loos patrones de las palicaciones modernas. procede»
   - **🔬 Diagnóstico**:

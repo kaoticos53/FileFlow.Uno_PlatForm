@@ -7,6 +7,7 @@ using FileFlow.App.Services;
 using FileFlow.Sdk;
 using FileFlow.Sdk.Services;
 using FileFlow.Sdk.Localization;
+using FileFlow.Sdk.Storage;
 using FileFlow.Sdk.TemplateEngine;
 
 namespace FileFlow.App.ViewModels;
@@ -109,6 +110,52 @@ public partial class NodeParameterViewModel : ObservableObject, IDisposable
             }
 
             return string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Valor por defecto canónico del parámetro, resuelto desde su descriptor o inferido por convención.
+    /// </summary>
+    public object? DefaultValue
+    {
+        get
+        {
+            if (Descriptor?.DefaultValue != null && !string.IsNullOrWhiteSpace(Descriptor.DefaultValue.ToString()))
+            {
+                return Descriptor.DefaultValue;
+            }
+
+            if (IsFolderPath)
+            {
+                if (Key.Contains("Quarantine", StringComparison.OrdinalIgnoreCase))
+                {
+                    return @"{RelativeDir}\Quarantine";
+                }
+                if (Key.Contains("Trash", StringComparison.OrdinalIgnoreCase))
+                {
+                    return "{TrashDir}";
+                }
+                if (Key.Contains("Output", StringComparison.OrdinalIgnoreCase) ||
+                    Key.Contains("Destination", StringComparison.OrdinalIgnoreCase) ||
+                    Key.Contains("Target", StringComparison.OrdinalIgnoreCase))
+                {
+                    return "{TempDir}/intermediate";
+                }
+
+                return "{GlobalOutputDir}";
+            }
+
+            return null;
+        }
+    }
+
+    [RelayCommand]
+    public void ResetToDefault()
+    {
+        var def = DefaultValue;
+        if (def != null)
+        {
+            _uiDispatcher.Post(() => Value = def.ToString());
         }
     }
 
@@ -701,7 +748,49 @@ public partial class NodeParameterViewModel : ObservableObject, IDisposable
 
         try
         {
-            var ctx = _activeEvaluationContext ?? new FileItemContext();
+            FileItemContext ctx;
+            if (_activeEvaluationContext != null)
+            {
+                if (!_activeEvaluationContext.Metadata.ContainsKey("GlobalOutputDir"))
+                {
+                    ctx = _activeEvaluationContext.DeepClone();
+                    string? globalOut = ResolveEditor()?.GlobalOutputDir;
+                    if (string.IsNullOrWhiteSpace(globalOut))
+                    {
+                        globalOut = UserPreferencesService.Instance.Preferences.DefaultGlobalOutputDir;
+                    }
+                    if (string.IsNullOrWhiteSpace(globalOut))
+                    {
+                        globalOut = AppPaths.DefaultGlobalOutputDir;
+                    }
+                    if (!string.IsNullOrWhiteSpace(globalOut))
+                    {
+                        ctx.Metadata["GlobalOutputDir"] = globalOut;
+                    }
+                }
+                else
+                {
+                    ctx = _activeEvaluationContext;
+                }
+            }
+            else
+            {
+                ctx = new FileItemContext();
+                string? globalOut = ResolveEditor()?.GlobalOutputDir;
+                if (string.IsNullOrWhiteSpace(globalOut))
+                {
+                    globalOut = UserPreferencesService.Instance.Preferences.DefaultGlobalOutputDir;
+                }
+                if (string.IsNullOrWhiteSpace(globalOut))
+                {
+                    globalOut = AppPaths.DefaultGlobalOutputDir;
+                }
+                if (!string.IsNullOrWhiteSpace(globalOut))
+                {
+                    ctx.Metadata["GlobalOutputDir"] = globalOut;
+                }
+            }
+
             EvaluatedValue = VariableTemplateResolver.Resolve(valStr, ctx, _sourceRootPath);
         }
         catch

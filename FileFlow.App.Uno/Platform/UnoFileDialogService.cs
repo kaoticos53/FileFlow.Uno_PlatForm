@@ -115,7 +115,7 @@ public sealed class UnoFileDialogService : IFileDialogService
 
     public Task<string?> ShowOpenFileDialogAsync(string title, string filter, string defaultExt = "")
     {
-        return EnqueueOnUiAsync(window =>
+        return EnqueueOnUiAsync(async window =>
         {
             var picker = new FileOpenPicker
             {
@@ -124,13 +124,14 @@ public sealed class UnoFileDialogService : IFileDialogService
             };
             OwnPicker(picker, window);
             ApplyFilter(picker, filter, defaultExt);
-            return picker.PickSingleFileAsync().AsTask().GetAwaiter().GetResult()?.Path;
+            var file = await picker.PickSingleFileAsync().AsTask();
+            return file?.Path;
         });
     }
 
     public Task<string?> ShowSaveFileDialogAsync(string title, string filter, string defaultExt = "", string defaultFileName = "")
     {
-        return EnqueueOnUiAsync(window =>
+        return EnqueueOnUiAsync(async window =>
         {
             var picker = new FileSavePicker
             {
@@ -139,23 +140,25 @@ public sealed class UnoFileDialogService : IFileDialogService
             };
             OwnPicker(picker, window);
             ApplyFilter(picker, filter, defaultExt);
-            return picker.PickSaveFileAsync().AsTask().GetAwaiter().GetResult()?.Path;
+            var file = await picker.PickSaveFileAsync().AsTask();
+            return file?.Path;
         });
     }
 
     public Task<string?> ShowFolderBrowserDialogAsync(string title)
     {
-        return EnqueueOnUiAsync(window =>
+        return EnqueueOnUiAsync(async window =>
         {
             var picker = new FolderPicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary };
             picker.FileTypeFilter.Add("*");
             OwnPicker(picker, window);
-            return picker.PickSingleFolderAsync().AsTask().GetAwaiter().GetResult()?.Path;
+            var folder = await picker.PickSingleFolderAsync().AsTask();
+            return folder?.Path;
         });
     }
 
     /// <summary>Encola el picker en UI y devuelve la Task del resultado: sin Wait ni interbloqueo.</summary>
-    private static Task<string?> EnqueueOnUiAsync(Func<Window, string?> pick)
+    private static Task<string?> EnqueueOnUiAsync(Func<Window, Task<string?>> pickAsync)
     {
         var window = App.MainWindow;
         if (window is null)
@@ -165,17 +168,25 @@ public sealed class UnoFileDialogService : IFileDialogService
 
         var dispatcherQueue = window.DispatcherQueue;
         var completion = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        if (!dispatcherQueue.TryEnqueue(() =>
+
+        async void RunPickAsync()
         {
             try
             {
-                completion.SetResult(pick(window));
+                var result = await pickAsync(window);
+                completion.SetResult(result);
             }
             catch (Exception ex)
             {
                 completion.SetException(ex);
             }
-        }))
+        }
+
+        if (dispatcherQueue.HasThreadAccess)
+        {
+            RunPickAsync();
+        }
+        else if (!dispatcherQueue.TryEnqueue(RunPickAsync))
         {
             completion.SetResult(null);
         }

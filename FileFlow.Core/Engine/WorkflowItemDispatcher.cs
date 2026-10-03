@@ -3,6 +3,7 @@ using System.Diagnostics;
 using FileFlow.Core.Telemetry;
 using FileFlow.Sdk;
 using FileFlow.Sdk.Localization;
+using FileFlow.Sdk.Storage;
 
 namespace FileFlow.Core.Engine;
 
@@ -76,9 +77,10 @@ public sealed class WorkflowItemDispatcher
         string temporaryDirectory = "")
     {
         item.Metadata["WorkflowExecutionId"] = executionId;
-        if (!string.IsNullOrWhiteSpace(globalOutputDir))
+        string effectiveGlobal = !string.IsNullOrWhiteSpace(globalOutputDir) ? globalOutputDir : AppPaths.DefaultGlobalOutputDir;
+        if (!string.IsNullOrWhiteSpace(effectiveGlobal))
         {
-            item.Metadata["GlobalOutputDir"] = globalOutputDir;
+            item.Metadata["GlobalOutputDir"] = effectiveGlobal;
         }
 
         if (!string.IsNullOrWhiteSpace(temporaryDirectory))

@@ -129,6 +129,13 @@ public partial class App : Application
             // nulo declarado y el botón de la tarjeta no abre nada.
             windowService: s_services.GetRequiredService<IWindowService>());
 
+        // Vista previa de archivos: el previsualizador del host para instantáneas del inspector y consola de registros.
+        HostUi.FilePreviewRequested += request =>
+        {
+            var dispatcher = s_services.GetRequiredService<IUiDispatcher>();
+            dispatcher.Post(() => _ = Platform.UnoFilePreviewHost.ShowPreviewAsync(request));
+        };
+
         // Exportación de registros: el diálogo nativo de guardar es del host; la consola portable lo pide.
         HostUi.SetLogExporter(async () =>
         {

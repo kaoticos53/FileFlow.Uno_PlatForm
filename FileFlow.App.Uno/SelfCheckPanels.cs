@@ -197,13 +197,20 @@ internal static class SelfCheckPanels
                         "el «Probar» sí se ofrece con el nodo inspeccionado (dibujado y habilitado): la prueba aislada tiene a quién probar");
 
                     // Hito 242: las pestañas de snapshots y diff, con los datos del NODO y del VM.
-                    // El flujo de ejemplo no trae snapshots: la sonda crea uno de ENTRADA por la vía
-                    // de producción (CreateInput con un FileItemContext, la misma fábrica que usa el
-                    // motor) y re-inspecciona — el diff del VM exige un snapshot seleccionado.
+                    // El flujo de ejemplo no trae snapshots: la sonda crea uno de ENTRADA y uno de SALIDA por la vía
+                    // de producción (CreateInput/CreateOutput con un FileItemContext, la misma fábrica que usa el
+                    // motor) y re-inspecciona — el diff del VM exige un snapshot seleccionado y las tres vistas
+                    // (Snapshots, Entradas, Salidas) materializan sus tarjetas.
                     var probeItem = new FileItemContext(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "__selfcheck_probe__.txt"));
                     probeItem.Metadata["Category"] = "Probe";
                     probeItem.Metadata["Status"] = "Selfcheck";
                     firstNode.InputSnapshots.Add(NodeDataSnapshot.CreateInput(firstNode.Id, "In", probeItem));
+
+                    var probeOutItem = new FileItemContext(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "__selfcheck_probe_out__.txt"));
+                    probeOutItem.Metadata["Category"] = "ProbeOut";
+                    probeOutItem.Metadata["Status"] = "SelfcheckDone";
+                    firstNode.OutputSnapshots.Add(NodeDataSnapshot.CreateOutput(firstNode.Id, "Done", probeOutItem));
+
                     insp.InspectForProbe(firstNode);
 
                     var (snapshotCards, diffRows, tabSwitch) = insp.ProbeSnapshotTabs();
