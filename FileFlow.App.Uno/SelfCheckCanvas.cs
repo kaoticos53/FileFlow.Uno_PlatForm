@@ -55,6 +55,12 @@ internal static class SelfCheckCanvas
 
         report.AppendLine("=== Sondeo en runtime del host Uno (fase 3.1) ===");
 
+        // La DPI awareness del host (hito 325): con la pantalla escalada, la escala observada debe ser la
+        // REAL (p. ej. 1,25) y la awareness NO puede ser UNAWARE — si lo es, Windows virtualiza la entrada y
+        // el hit-test de la rueda elige mal el destino (el defecto que corregimos en app.manifest).
+        report.AppendLine($"       [dpi] escala={DpiDiagnostics.ScaleOf(window.Content as FrameworkElement):F2}, "
+                          + $"awareness={DpiDiagnostics.Awareness}");
+
         // El MARCO (hito 272): la barra arriba, el editor debajo y las tres zonas con caja propia y
         // disjuntas. Su instrumento y el porqué de cada medida viven en SelfCheckFrame.
         SelfCheckFrame.Check(window, Check);

@@ -7,7 +7,9 @@ using FileFlow.Sdk.Localization;
 using FileFlow.Sdk.Telemetry;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Windows.Foundation;
 
 namespace FileFlow.App.Uno.Controls;
 
@@ -525,6 +527,63 @@ public sealed partial class LogPanel : UserControl
     private void OnFilterWarningsClicked(object sender, RoutedEventArgs e) => _vm?.SetFilter("Warnings");
     private void OnFilterInfoClicked(object sender, RoutedEventArgs e) => _vm?.SetFilter("Info");
     private void OnFilterDebugClicked(object sender, RoutedEventArgs e) => _vm?.SetFilter("Debug");
+
+    /// <summary>Manejador de rueda del ratón en el ListView de la consola: desplaza verticalmente
+    /// la lista de registros en función de la delta de la rueda. Usa TransformToVisual para compensar bugs
+    /// de DPI escalado en Uno Platform que causan que GetCurrentPoint() devuelva coordenadas incorrectas.</summary>
+    private void OnLogListViewPointerWheelChanged(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is ListView listView && _listScroll != null)
+        {
+            var pointerPoint = e.GetCurrentPoint(listView);
+            if (pointerPoint != null)
+            {
+                // WORKAROUND para bug de DPI escalado en Uno Platform:
+                // Usar TransformToVisual para validar si el puntero está realmente dentro del control
+                // de una forma que compense correctamente el factor DPI
+                try
+                {
+                    var transform = listView.TransformToVisual(null);
+                    var point = transform.TransformPoint(pointerPoint.Position);
+
+                    // Calcular el rectángulo visual del ListView en coordenadas de pantalla
+                    var visualRect = new Rect(
+                        point.X - pointerPoint.Position.X,
+                        point.Y - pointerPoint.Position.Y,
+                        listView.ActualWidth,
+                        listView.ActualHeight
+                    );
+
+                    // Validar que el puntero está dentro del rectángulo visual
+                    if (!visualRect.Contains(point))
+                    {
+                        return;
+                    }
+                }
+                catch
+                {
+                    // Si hay error en la transformación, aún así procesar el evento
+                    // (mejor que perder la funcionalidad)
+                }
+
+                // Extraer la delta de la rueda (número de líneas): positivo es arriba, negativo es abajo.
+                int wheelDelta = pointerPoint.Properties.MouseWheelDelta;
+
+                // Factor de desplazamiento por línea (en píxeles). Ajustable según la velocidad deseada.
+                const double ScrollAmount = 40.0;
+
+                // Calcular el nuevo offset vertical, asegurando que no salga de los límites del contenido.
+                double newVerticalOffset = _listScroll.VerticalOffset - (wheelDelta * ScrollAmount / 120.0);
+                newVerticalOffset = Math.Max(0, Math.Min(newVerticalOffset, _listScroll.ScrollableHeight));
+
+                // Cambiar la posición de scroll de forma suave.
+                _listScroll.ChangeView(null, newVerticalOffset, null, disableAnimation: false);
+
+                // Marcar el evento como manejado para evitar que se propague a otros elementos.
+                e.Handled = true;
+            }
+        }
+    }
 
     private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
     {

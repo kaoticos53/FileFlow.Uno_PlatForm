@@ -222,11 +222,12 @@
     <!-- Fila 2 · Catálogo: grupos acordeón con sus nodos -->
     <ScrollViewer x:Name="ToolboxScroll" Grid.Row="2" VerticalScrollBarVisibility="Auto"
                   AutomationProperties.AutomationId="ToolboxScrollSurface"
-                  Margin="0,2,0,0" Padding="0,0,2,0">
+                  Margin="0,2,0,0" Padding="0,0,2,0"
+                  PointerWheelChanged="OnToolboxScrollPointerWheelChanged">
       <ItemsControl x:Name="GroupsHost" ItemsSource="{x:Bind Vm.CategoryGroups}">
         <ItemsControl.ItemTemplate>
           <DataTemplate>
-            <StackPanel Margin="0,0,0,8">
+            <StackPanel Margin="0,0,8,8">
 
               <!-- Encabezado de la categoría: Tarjeta de sección destacada (chevron + icono acentuado + nombre + pill badge) -->
               <ToggleButton IsChecked="{Binding IsExpanded, Mode=TwoWay}"
@@ -250,7 +251,7 @@
                   </Border>
 
                   <!-- Título de categoría: Tipografía destacada en negrita -->
-                  <TextBlock Grid.Column="1" Text="{Binding CategoryName}" FontSize="12.5" FontWeight="Bold"
+                  <TextBlock Grid.Column="1" Text="{Binding CategoryName}" FontSize="13" FontWeight="Bold"
                              VerticalAlignment="Center"
                              Foreground="{StaticResource CanvasTextBrush}" TextTrimming="CharacterEllipsis" />
 
@@ -259,7 +260,7 @@
                           Background="{StaticResource CanvasSurfaceBrush}"
                           BorderThickness="1" BorderBrush="{StaticResource CanvasBorderBrush}"
                           VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Items.Count}" FontSize="10.5" FontWeight="Bold"
+                    <TextBlock Text="{Binding Items.Count}" FontSize="11" FontWeight="Bold"
                                HorizontalAlignment="Center"
                                Foreground="{StaticResource CanvasAccentGlowBrush}" VerticalAlignment="Center" />
                   </Border>
@@ -294,7 +295,7 @@
                         </Border>
 
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                          <TextBlock Text="{Binding Name}" FontSize="11.5" FontWeight="Normal"
+                          <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="Normal"
                                      Foreground="{StaticResource CanvasTextBrush}"
                                      TextTrimming="CharacterEllipsis" MaxLines="1"
                                      VerticalAlignment="Center" />

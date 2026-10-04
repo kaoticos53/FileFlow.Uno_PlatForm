@@ -256,6 +256,12 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
 
+        // (hito 325) Con FILEFLOW_WHEEL_TRACE=1, rastro del PointerWheelChanged real (escala, DPI, punto y
+        // origen). La rueda NO se intercepta: el host es ya DPI-aware (app.manifest, PerMonitorV2) y el
+        // enrutado nativo de WinUI es correcto. Antes arrancaba DPI-UNAWARE y Windows le virtualizaba la
+        // entrada, que es lo que rompía el hit-test de la rueda con la pantalla escalada.
+        DpiDiagnostics.AttachTrace(this);
+
         // El foco de TODA la ventana al rastro del hito 252 (con FILEFLOW_CANVAS_TRACE=1): el lienzo deja
         // escrito quién tiene el foco al clicar, pero un robo POSTERIOR —el caso medido con puntero real:
         // un ScrollViewer se lleva el foco ~0,5 s después del clic— sólo se ve escuchando en la raíz. El

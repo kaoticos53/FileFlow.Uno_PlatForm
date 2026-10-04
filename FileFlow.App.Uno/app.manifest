@@ -1,6 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
   <assemblyIdentity version="0.1.0.0" name="FileFlow.Studio.Uno"/>
+
+  <!-- Sin esto el proceso arranca DPI-UNAWARE (medido: [rueda] dpi=UNAWARE, escala=1,00 con la pantalla al
+       125%). Windows le virtualiza entonces la ENTRADA y el hit-test de la rueda elige mal el destino,
+       desplazando un panel cuando el puntero está fuera de él. El template de WinUI trae este bloque; aquí
+       faltaba. `PerMonitorV2` es el modo que WinUI 3 espera. -->
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true/PM</dpiAware>
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2, PerMonitor</dpiAwareness>
+    </windowsSettings>
+  </application>
+
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- Windows 10/11: la declaración de <dpiAwareness> sólo se honra si el sistema está declarado. -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
+    </application>
+  </compatibility>
+
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
     <security>
       <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">

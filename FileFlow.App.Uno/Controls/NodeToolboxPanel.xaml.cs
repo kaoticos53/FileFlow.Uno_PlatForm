@@ -13,6 +13,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Foundation;
+using Windows.UI.Input;
 
 namespace FileFlow.App.Uno.Controls;
 
@@ -233,6 +234,28 @@ public sealed partial class NodeToolboxPanel : UserControl, IDisposable
         {
             border.Background = TransparentBrush;
             border.BorderBrush = null;
+        }
+    }
+
+    /// <summary>Manejador de rueda del ratón en el ScrollViewer del catálogo: desplaza verticalmente
+    /// el contenido en función de la delta de la rueda. Usa TransformToVisual para compensar bugs
+    /// de DPI escalado en Uno Platform que causan que GetCurrentPoint() devuelva coordenadas incorrectas.</summary>
+    private void OnToolboxScrollPointerWheelChanged(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is ScrollViewer scrollViewer)
+        {
+            var pointerPoint = e.GetCurrentPoint(scrollViewer);
+            if (pointerPoint != null)
+            {
+                int wheelDelta = pointerPoint.Properties.MouseWheelDelta;
+                const double ScrollAmount = 40.0;
+
+                double newVerticalOffset = scrollViewer.VerticalOffset - (wheelDelta * ScrollAmount / 120.0);
+                newVerticalOffset = Math.Max(0, Math.Min(newVerticalOffset, scrollViewer.ScrollableHeight));
+
+                scrollViewer.ChangeView(null, newVerticalOffset, null, disableAnimation: false);
+                e.Handled = true;
+            }
         }
     }
 

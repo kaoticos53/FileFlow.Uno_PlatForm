@@ -22,6 +22,34 @@
 
 ## Ventana viva
 
+## [2026-10-04] - Hito 325: La rueda a escala ≠ 100% — el host arrancaba DPI-UNAWARE (`app.manifest`)
+
+### 🎯 El encargo
+«hay problemas haciendo scroll con la rueda del ratón en los paneles. he comprobado que el problema solo se da al escalar la pantalla a un valor diferente del 100% … investiga cómo solucionar el problema.» El síntoma quedó precisado por el usuario: la rueda **desplaza, pero en zonas FUERA del panel** (el destino se elige mal); y después confirmó que su pantalla está al **125%**.
+
+### 🔬 El diagnóstico
+1. **La causa NO es WinUI/Uno: es el manifiesto.** El head Windows es WinAppSDK nativo (`UseWinUI=true`, `Microsoft.WindowsAppSDK 1.8`, *unpackaged*, sin `Uno.UI`), pero **el proceso arrancaba DPI-UNAWARE**: medido en runtime, `[dpi] dpi=UNAWARE, escala=1,00` con la pantalla al 125%. `app.manifest` no declaraba DPI awareness (el template de WinUI sí la trae). Un proceso unaware recibe la ENTRADA virtualizada por Windows, y con ella el hit-test de la rueda elige mal el destino — exactamente «se desplaza en zonas fuera del panel».
+2. **La medida desde fuera mentía.** PowerShell es DPI-unaware y `GetDpiForSystem` devolvía 96 en una pantalla al 125%; por eso la primera medición concluyó «100%». La única medida fiable es la del PROPIO proceso.
+3. **Dos intentos descartados CON evidencia, no a ciegas**: (a) subclasar el `WNDPROC` (ventana superior + `Microsoft.UI.Content.DesktopChildSiteBridge` + `InputSiteWindowClass`) **no recibió ni un `WM_MOUSEMOVE`** — con rastro y ratón inyectado, el evento XAML sí se disparaba pero ningún mensaje de ratón llegaba a esos HWND: la entrada de WinAppSDK no pasa por ahí; (b) un enganche XAML corre DESPUÉS del scroll nativo y el `ScrollViewer` no admite desactivarle la rueda ([#2947](https://github.com/microsoft/microsoft-ui-xaml/issues/2947)).
+
+### 🧱 Las piezas
+- **`FileFlow.App.Uno/app.manifest`**: declarados `dpiAware` (`true/PM`) y `dpiAwareness` (`PerMonitorV2, PerMonitor`), más el `supportedOS` de Windows 10/11 (sin él, `<dpiAwareness>` no se honra). **Es la corrección.**
+- **`FileFlow.App.Uno/Platform/DpiDiagnostics.cs`** (nuevo): mide la DPI awareness EFECTIVA del proceso (`GetThreadDpiAwarenessContext` + `GetAwarenessFromDpiAwarenessContext`) y la escala; con `FILEFLOW_WHEEL_TRACE=1` traza el `PointerWheelChanged` real (escala, punto, `handled`, origen). No intercepta nada.
+- **`SelfCheckCanvas.cs`**: línea informativa `[dpi] escala=…, awareness=…` — la medida de la corrección.
+- **`MainWindow.xaml.cs`**: `DpiDiagnostics.AttachTrace(this)` (sólo rastro; la rueda vuelve a ser la nativa).
+- **`FileFlow.Tests/Unit/App/UnoDpiAwarenessGuardTests.cs`** (nuevo, 2 pruebas): el manifiesto declara PerMonitorV2 + el `supportedOS`; el selfcheck reporta la awareness y `MainWindow` adjunta el rastro.
+
+### 📊 Validación
+- Build del host: **0 errores**.
+- Suite completa: **1773 superadas, 1 omitida, 0 fallos** (`mutations/COVERAGE.md` regenerado).
+- `-SelfCheck`: **EXIT 0 · 113 [OK] · 0 [FALLO] · VERIFICADO**, con `[dpi] escala=1,25, awareness=PER_MONITOR`.
+- **Rueda MEDIDA a 125% con ratón inyectado y rastro**: sobre el panel izquierdo `escala=1,25 … handled=True` (el `ScrollViewer` nativo lo desplaza, destino correcto); sobre el lienzo `pos=(1898,470) handled=False` (**no desplaza nada**). Antes (DPI-unaware) el rastro daba `handled=False` en todo.
+
+### 🚧 Frontera declarada
+La prueba de rueda es con ratón **inyectado** (`mouse_event`), no con la rueda física del usuario: queda su confirmación manual al 125%. Los manejadores de rueda ad-hoc **sin commitear** en `LogPanel`/`NodeToolboxPanel` (ajenos a este hito) interceptan la rueda incondicionalmente y podrían reintroducir el defecto en esos dos paneles: conviene retirarlos ahora que la causa raíz está corregida.
+
+---
+
 ## [2026-10-04] - Hito 324: La rueda desaparece también del lienzo — zoom solo con botones
 
 ### 🎯 El encargo
