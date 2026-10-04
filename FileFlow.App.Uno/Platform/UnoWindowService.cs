@@ -681,7 +681,6 @@ public sealed class UnoWindowService : IWindowService
     private static async Task<ContentDialogResult> ShowOwnedModalAsync(ContentDialog dialog)
     {
         ActiveDialog = dialog;
-        ContentDialogWheelScroller.EnableScrollSurface(dialog);
         try
         {
             return await dialog.ShowAsync();

@@ -1450,8 +1450,9 @@ public sealed partial class EditorCanvasControl : UserControl
 
         double before = WireToSocketDistance(0, out string beforeDetail);
 
-        // Los gestos, por los MISMOS mandos que usan los handlers y los botones: el pan del arrastre y el zoom
-        // de la rueda. Separados a propósito: el usuario reportó los dos, y hay que saber cuál descuadra.
+        // Los gestos, por los MISMOS mandos que usan los handlers y los botones: el pan del arrastre y el
+        // zoom (ZoomBy, el mismo que los botones +/-). Separados a propósito: el usuario reportó los dos, y
+        // hay que saber cuál descuadra.
         double savedTx = CanvasTransform.TranslateX;
         double savedTy = CanvasTransform.TranslateY;
         double savedScale = CanvasTransform.ScaleX;

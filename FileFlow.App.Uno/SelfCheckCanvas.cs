@@ -368,20 +368,10 @@ internal static class SelfCheckCanvas
         // comprobador (mide y devuelve; el veredicto lo escribe quien lo llama).
         SelfCheckPointerless.Check(canvas, Check);
 
-        // La RUEDA DEL RATÓN (hito 319): la resolución del destino por el PUNTO del puntero sobre las tres
-        // superficies que la consumen. Su instrumento vive en SelfCheckWheel y recibe este mismo comprobador.
-        // Una superficie sin contenido desplazable se cuenta aparte: no hay muesca que medir y declararla
-        // rota sería culpar a la sonda de que el flujo de ejemplo no la llene.
-        var wheel = SelfCheckWheel.Check(
-            SelfCheckTree.Find<LogPanel>(window.Content),
-            SelfCheckTree.Find<NodeToolboxPanel>(window.Content),
-            SelfCheckTree.Find<NodeInspectorPanel>(window.Content),
-            Check);
-        if (wheel.Skipped > 0)
-        {
-            report.AppendLine("       [omitida] rueda: " + wheel.Skipped
-                + " superficie(s) sin contenido desplazable en el flujo de ejemplo (" + wheel.Detail + ")");
-        }
+        // La RUEDA DEL RATÓN ya no se mide aquí porque ya NO HAY rueda propia en el host: el motor del
+        // hito 319 se retiró por errático y el zoom por rueda del lienzo también (hito 324). Los paneles
+        // desplazan con el ScrollViewer nativo de WinUI y el zoom se mueve con los botones +/-, que es por
+        // donde lo miden ProbeUiAccessibility y la sección de zoom.
 
         // Fase 3.5 (sin puntero): cambiar el tema por la API del núcleo tiene que re-tematizar el
         // lienzo EN CALIENTE — fondo y tarjetas con los valores del tema nuevo (los pinceles que los

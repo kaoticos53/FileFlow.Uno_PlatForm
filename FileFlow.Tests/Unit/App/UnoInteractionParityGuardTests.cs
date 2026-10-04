@@ -90,7 +90,7 @@ public class UnoInteractionParityGuardTests
         ("Cambiar el tema re-tematiza el lienzo en caliente",
             "FreeFill_And_DragSourceColors_ShouldMatchTheDesktopTokens",
             "selfcheck: sonda 3.5 (light_studio re-pinta fondo y tarjetas)"),
-        ("Pan con botón derecho y zoom con la rueda",
+        ("Pan con botón derecho y zoom con botones",
             "CenterOn_ShouldCenterTheNode_InTheReferenceView",
             "host: guardia de origen (el pan/zoom viven en el code-behind censurado)"),
         ("El aviso de cables perdidos ofrece ir/reconectar",
@@ -136,7 +136,7 @@ public class UnoInteractionParityGuardTests
     {
         // Las filas cuyo gesto no puede ejecutarse en este entorno (hito 231) declaran el pendiente
         // en vez de fingir una cobertura que no existe: la honestidad también es un contrato.
-        var gestureRows = new[] { "Rubber band selecciona por rectángulo", "Pan con botón derecho y zoom con la rueda" };
+        var gestureRows = new[] { "Rubber band selecciona por rectángulo", "Pan con botón derecho y zoom con botones" };
 
         foreach (var interaction in gestureRows)
         {

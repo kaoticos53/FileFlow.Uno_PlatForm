@@ -516,7 +516,7 @@ public class UnoCanvasWireGuardTests
 
         code.Should().Contain(
             "ZoomBy(1.25);",
-            "y cambia el zoom por los mismos mandos de la rueda y de los botones: los dos gestos que el usuario " +
+            "y cambia el zoom por el mismo mando que los botones +/-: los dos gestos que el usuario " +
             "reportó se miden, no se suponen");
 
         code.Should().Contain(

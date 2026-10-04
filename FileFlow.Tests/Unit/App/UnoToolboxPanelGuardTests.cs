@@ -24,13 +24,6 @@ public class UnoToolboxPanelGuardTests
     private static string PanelCode() => SourceText.CodeWithoutComments(PanelPath);
 
     [Fact]
-    public void ToolboxPanel_ShouldHandleMouseWheelAcrossTheWholeCatalogScrollSurface()
-    {
-        PanelCode().Should().Contain("ContentDialogWheelScroller.EnableScrollSurface(ToolboxScroll)",
-            "la superficie completa del catálogo debe capturar la rueda también encima de nombres y descripciones");
-    }
-
-    [Fact]
     public void ToolboxPanel_ShouldConsumeThePortableToolboxViewModel()
     {
         string code = PanelCode();

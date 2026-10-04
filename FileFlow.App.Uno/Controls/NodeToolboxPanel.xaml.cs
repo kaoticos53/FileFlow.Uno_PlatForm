@@ -33,7 +33,9 @@ public sealed partial class NodeToolboxPanel : UserControl, IDisposable
     public NodeToolboxPanel()
     {
         InitializeComponent();
-        ContentDialogWheelScroller.EnableScrollSurface(ToolboxScroll);
+        // La rueda NO se engancha: el catálogo desplaza con el ScrollViewer nativo de la lista, que es
+        // el comportamiento de fábrica de WinUI. El host no tiene NINGUNA rueda propia: el motor del hito
+        // 319 se retiró por errático y el zoom del lienzo por rueda también (hito 324).
         LocalizationManager.Instance.LanguageChanged += OnLanguageChanged;
     }
 
@@ -461,9 +463,6 @@ public sealed partial class NodeToolboxPanel : UserControl, IDisposable
     /// model. La sonda compara las dos para garantizar que el control de filtro cae dentro de los límites
     /// del cajón y cubre todas las categorías declaradas.
     /// </summary>
-    /// <summary>La superficie sobre la que el catálogo resuelve la rueda (la sonda del sondeo la mide).</summary>
-    internal UIElement WheelSurfaceForProbe => ToolboxScroll;
-
     internal IReadOnlyList<Windows.Foundation.Rect> ChipBoxesForProbe()
     {
         var boxes = new List<Windows.Foundation.Rect>();

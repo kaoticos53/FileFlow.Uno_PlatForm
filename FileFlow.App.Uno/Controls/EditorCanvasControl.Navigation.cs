@@ -121,12 +121,9 @@ public sealed partial class EditorCanvasControl
     // Zoom, navegación del viewport y rejilla de fondo
     // ─────────────────────────────────────────────────────────────────────────────
 
-    private void OnWheelChanged(object sender, PointerRoutedEventArgs e)
-    {
-        var delta = e.GetCurrentPoint(RootGrid).Properties.MouseWheelDelta;
-        ZoomBy(delta > 0 ? 1.1 : 1 / 1.1);
-    }
-
+    // La RUEDA ya no hace nada en el lienzo: el zoom por rueda se retiró en el hito 324 (el usuario reportó
+    // que tampoco funcionaba y el host había quedado sin medida de rueda propia). El zoom se mueve con los
+    // botones +/- de la barra y con ZoomBy, que es por donde lo miden la sonda del selfcheck y la suite.
     private void OnZoomIn(object sender, RoutedEventArgs e) => ZoomBy(1.1);
 
     private void OnZoomOut(object sender, RoutedEventArgs e) => ZoomBy(1 / 1.1);

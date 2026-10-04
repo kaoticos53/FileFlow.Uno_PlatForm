@@ -367,5 +367,24 @@
         </DataTemplate>
       </ListView.ItemTemplate>
     </ListView>
+
+    <!-- Píldora de «nuevos registros»: cuando el usuario NO está al fondo, la consola deja de arrastrar
+         la vista y en su lugar ofrece volver a ella. Es la otra mitad del stick-to-bottom: perseguir la
+         cola sin más era el «se mueve el panel de logs» que se veía con el cursor en otra parte. -->
+    <Button x:Name="NewLogsPill" Grid.Row="2"
+            AutomationProperties.AutomationId="LogNewRecordsPill"
+            HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,12"
+            Click="OnNewLogsPillClicked" Visibility="Collapsed"
+            Padding="12,6" CornerRadius="14" FontSize="11"
+            Background="{StaticResource CanvasAccentPrimaryBrush}" BorderThickness="0"
+            ToolTipService.ToolTip="Volver al final de la consola">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <TextBlock Text="↓" FontWeight="Bold" Foreground="{StaticResource CanvasOnAccentBrush}" />
+        <TextBlock x:Name="NewLogsPillCount" Text="0" FontWeight="Bold"
+                   Foreground="{StaticResource CanvasOnAccentBrush}" />
+        <TextBlock x:Name="NewLogsPillLabel" Text="nuevos registros"
+                   Foreground="{StaticResource CanvasOnAccentBrush}" />
+      </StackPanel>
+    </Button>
   </Grid>
 </UserControl>

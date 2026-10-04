@@ -57,10 +57,6 @@ public sealed partial class MainMenuDrawer : UserControl
     {
         InitializeComponent();
 
-        // El cajón del menú es una superficie desplazable más: la rueda entra por la MISMA puerta única del
-        // host y el destino sale del punto del puntero (su ScrollViewer central).
-        ContentDialogWheelScroller.EnableScrollSurface(this);
-
         RefreshLocalization();
     }
 

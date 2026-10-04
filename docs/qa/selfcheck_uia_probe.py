@@ -27,11 +27,10 @@ ANCLAS con peer (CanvasRoot) y sondea:
       y se vuelve a Parámetros. Sin conmutación no hay pestaña materializada en el árbol (el Pivot
       virtualiza) — y el conmutador aquí es el PATRÓN SelectionItem, no clicks.
 
-  S8 (hito 319). LA RUEDA. La rueda FÍSICA sobre las tres superficies del host: la consola de registros,
-      el catálogo de nodos y la ficha del inspector. El punto elegido cae sobre una zona de TEXTO (la que
-      el usuario reportaba como la que fallaba) y el veredicto es que el VerticalOffset del ScrollViewer
-      CAMBIA con la muesca. La inyección es real: SetCursorPos + mouse_event(MOUSEEVENTF_WHEEL) sobre el
-      ratón de la ventana — la misma vía que un usuario, no una llamada al método interno.
+  S0b. ANTES de todo paso que dependa de la ENTRADA: ¿hay un escritorio interactivo? En una sesión
+      bloqueada, SetCursorPos + mouse_event + keybd_event caen en el backstop del escritorio de bloqueo
+      y nada llega a la app. El preflight falla UNA vez con esa causa y cada veredicto posterior la
+      recuerda, para que ocho pasos rojos no parezcan ocho defectos del producto.
 
 Veredicto por codigo de salida: 0 = verificado, 2 = algun sondeo fallo, 3 = la app nunca aparecio.
 """
@@ -47,13 +46,26 @@ except ImportError:  # pywinauto depende de comtypes; si falta, la via de patró
     comtypes = None
 
 import pywinauto
-import ctypes
-import os
-import sys
-import time
+
+from ctypes import wintypes
 
 u32 = ctypes.windll.user32
 u32.SetProcessDPIAware()
+# Sin restype, un hwnd de 64 bits se trunca a c_int y «ventana en primer plano» puede leerse NULL en
+# falso (o al revés): el preflight del escritorio interactivo se apoya en este valor.
+u32.GetForegroundWindow.restype = wintypes.HWND
+
+
+class _POINT(ctypes.Structure):
+    _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
+
+
+u32.WindowFromPoint.argtypes = [_POINT]
+u32.WindowFromPoint.restype = wintypes.HWND
+u32.GetAncestor.argtypes = [wintypes.HWND, ctypes.c_uint]
+u32.GetAncestor.restype = wintypes.HWND
+u32.GetClassNameW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+u32.GetClassNameW.restype = ctypes.c_int
 
 VK_MAP = {c: 0x41 + (ord(c) - ord("A")) for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}
 VK_MAP.update({str(d): 0x30 + d for d in range(10)})
@@ -102,134 +114,6 @@ def press_escape():
     key(0x1B, up=True)
 
 
-# ── S8 (hito 319): la rueda FÍSICA sobre las tres superficies que la consumen ──────────────────────
-# Las anclas de las tres superficies (AutomationId declarado en cada panel). El punto elegido cae sobre
-# una zona de TEXTO —la que el usuario reportaba como la que fallaba— y el veredicto es que el
-# VerticalScrollPercent del ScrollViewer CAMBIA con la muesca de rueda real.
-WHEEL_SURFACES = [
-    ("consola", "LogScrollSurface"),
-    ("catalogo", "ToolboxScrollSurface"),
-    ("inspector", "InspectorParamsScrollSurface"),
-]
-
-MOUSEEVENTF_WHEEL = 0x0800
-
-
-def wheel_at(x, y, notches):
-    """Rueda FÍSICA en el punto: cursor real + mouse_event con la muesca (120 por muesca)."""
-    u32.SetCursorPos(int(x), int(y))
-    time.sleep(0.2)
-    u32.mouse_event(MOUSEEVENTF_WHEEL, 0, 0, int(notches * 120), 0)
-
-
-def scroll_percent(el):
-    """El VerticalScrollPercent (UIA ScrollPattern) del elemento o de su primer descendiente que lo exponga.
-
-    Es el ESTADO observable del desplazamiento: si la muesca no lo cambia, la rueda no llegó. Se lee por
-    el `iface_scroll` de pywinauto (su propia vía al patrón: `element_info.element`, el IUIAutomationElement
-    crudo), no por comtypes.GetPattern sobre el wrapper — esa llamada recibe el objeto equivocado y falla
-    en silencio (medido: el ScrollViewer del catálogo «sin ScrollPattern» cuando sí lo tiene).
-    """
-    if el is None:
-        return None
-
-    candidates = [el]
-    try:
-        candidates += el.descendants()
-    except Exception:
-        pass
-
-    for candidate in candidates:
-        try:
-            pattern = candidate.iface_scroll
-        except Exception:
-            continue
-        try:
-            if pattern.CurrentVerticallyScrollable:
-                return pattern.CurrentVerticalScrollPercent
-        except Exception:
-            continue
-    return None
-
-
-def scroll_verdict(el):
-    """El desplazamiento observable: el porcentaje, o una razón concreta de por qué no hay lectura.
-
-    Distinguir «no desplazable» de «sin patrón» es la diferencia entre declarar rota la rueda y declarar
-    rota la sonda: el ancla puede existir y no desplazar (nada que medir) o no exponer el patrón (la vía de
-    lectura falló). El detalle del sondeo tiene que poder decir cuál de las dos."""
-    if el is None:
-        return None, "el ancla no está en el árbol UIA"
-
-    found_any = False
-    for candidate in [el] + list(_safe_descendants(el)):
-        try:
-            pattern = candidate.iface_scroll
-        except Exception:
-            continue
-        found_any = True
-        try:
-            if pattern.CurrentVerticallyScrollable:
-                return pattern.CurrentVerticalScrollPercent, "con ScrollPattern"
-        except Exception as ex:
-            return None, "el patrón lanzó %s" % type(ex).__name__
-
-    return None, ("con ScrollPattern pero no desplazable verticalmente" if found_any
-                  else "sin ScrollPattern en el árbol de ese ancla")
-
-
-def _safe_descendants(el):
-    try:
-        return el.descendants()
-    except Exception:
-        return []
-
-
-def probe_wheel(win, name, aid):
-    """La rueda física sobre UNA superficie. Devuelve (veredicto, detalle) con veredicto en
-    {OK, OMITIDA, FALLO}.
-
-    El empujón previo hacia ARRIBA evita el falso negativo de una lista que ya está al final (la consola
-    arranca pegada al fondo en modo en vivo): sin él, una muesca hacia abajo no tendría a dónde ir y la
-    sonda declararía rota una rueda que funciona.
-
-    Una superficie cuyo scroll no desborda en esta escena —la consola con pocos registros, la ficha con
-    pocos parámetros— NO es un fallo: no hay muesca que medir, y declararla rota culparía a la sonda de que
-    el fixture no la llene. Se declara OMITIDA con su razón, como la frontera latente de S6.
-    """
-    el = by_aid(win, aid)
-    if el is None:
-        return "FALLO", "el ancla '%s' no está en el árbol UIA" % aid
-
-    try:
-        rect = el.rectangle()
-    except Exception as ex:
-        return "FALLO", "sin caja para '%s': %s" % (aid, type(ex).__name__)
-
-    x = (rect.left + rect.right) / 2.0
-    y = rect.top + (rect.bottom - rect.top) * 0.5
-
-    wheel_at(x, y, 3)          # empuja hacia arriba: aleja del tope inferior
-    time.sleep(0.8)
-    before, why = scroll_verdict(el)
-    if before is None:
-        return "OMITIDA", "'%s' sin desplazamiento que medir: %s" % (aid, why)
-
-    wheel_at(x, y, -3)         # la muesca que se mide
-    time.sleep(0.8)
-    after = scroll_percent(el)
-
-    wheel_at(x, y, 3)          # restaura el desplazamiento de partida
-    time.sleep(0.6)
-    restored = scroll_percent(el)
-
-    moved = after is not None and abs(after - before) > 0.5
-    back = restored is not None and abs(restored - before) <= 3.0
-    detail = ("rueda real en el centro de la superficie (%.0f,%.0f): %s%% -> %s%% (restaurado %s%%)"
-              % (x, y, before, after, restored))
-    return ("OK" if (moved and back) else "FALLO"), detail
-
-
 def by_aid(root, aid):
     """pywinauto 0.6.9: descendants() no acepta automation_id (leccion del 237) - filtrar aqui."""
     for el in root.descendants():
@@ -239,6 +123,101 @@ def by_aid(root, aid):
         except Exception:
             continue
     return None
+
+
+def _backstop_visible():
+    """¿Hay una ventana del escritorio de bloqueo tapando el escritorio? Se busca por CLASE en la
+    enumeración de ventanas de nivel superior, no por un punto: el centro de la ventana de la app depende
+    de dónde haya quedado al arrancar (medido: el preflight por punto daba limpio mientras el punto de
+    inyección caía justo debajo del backstop)."""
+    hits = []
+    enum_proc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    @enum_proc
+    def _cb(hwnd, _lparam):
+        try:
+            if not u32.IsWindowVisible(hwnd):
+                return True
+            buf = ctypes.create_unicode_buffer(256)
+            u32.GetClassNameW(hwnd, buf, 256)
+            cls = buf.value or ""
+            if "LockScreenBackstop" in cls or cls.startswith("LockApp"):
+                hits.append(cls)
+        except Exception:
+            pass
+        return True
+
+    try:
+        u32.EnumWindows(_cb, 0)
+    except Exception:
+        return None  # no poder mirar no es poder afirmar
+    return hits[0] if hits else None
+
+
+def interactive_desktop(win=None):
+    """¿Puede la entrada sintética (teclas y clics) llegar a la ventana de la app?
+
+    Devuelve (hay_escritorio, razon). Es la diferencia entre «el gesto no funcionó» y «no pude dar el
+    gesto»: en una sesión bloqueada, `SetCursorPos` devuelve verdadero pero `mouse_event` y `keybd_event`
+    caen en el BACKSTOP del escritorio de bloqueo (`LockScreenBackstopFrame`, medido sobre la propia
+    ventana de la app) y NINGÚN gesto llega — ni Shift+A, ni la escritura —, incluidos los pasos que esta
+    sonda lleva meses dando por buenos. Sin este preflight, ocho pasos rojos culpan a un
+    producto que nunca recibió el gesto.
+
+    Se miran DOS señales porque ninguna basta sola: el foreground puede apuntar a otra ventana mientras
+    el backstop sigue tapando la app, o el foreground puede leerse NULL mientras hay ventanas «en primer
+    plano» de nombre.
+    """
+    try:
+        hwnd = u32.GetForegroundWindow()
+    except Exception:
+        hwnd = 0
+    if not hwnd:
+        return (False,
+                "sin ventana en primer plano (GetForegroundWindow = NULL): la sesión está bloqueada o " +
+                "no hay escritorio interactivo, y la entrada inyectada no llega a ninguna ventana")
+
+    if win is not None:
+        try:
+            rect = win.rectangle()
+            under = u32.WindowFromPoint(_POINT((rect.left + rect.right) // 2,
+                                                (rect.top + rect.bottom) // 2))
+            root = u32.GetAncestor(under, 2) or under  # GA_ROOT
+            buf = ctypes.create_unicode_buffer(256)
+            u32.GetClassNameW(root, buf, 256)
+            cls = buf.value or ""
+            if "LockScreenBackstop" in cls or cls.startswith("LockApp"):
+                return (False,
+                        "la sesion esta bloqueada: '%s' tapa la app y la entrada inyectada cae en el "
+                        "backstop del escritorio de bloqueo" % cls)
+        except Exception:
+            # No poder mirar no es poder afirmar: se sigue con el resto de señales.
+            pass
+
+    backstop = _backstop_visible()
+    if backstop:
+        return (False,
+                "la sesion esta bloqueada: '%s' tapa el escritorio y la entrada inyectada "
+                "(SetCursorPos + mouse_event + keybd_event) cae en el backstop, no en la app" % backstop)
+
+    return True, "ventana en primer plano 0x%x: la entrada puede llegar" % (hwnd & 0xFFFFFFFF)
+
+
+def _input_note(detail):
+    """Sufija el motivo cuando la entrada ni siquiera puede llegar a una ventana.
+
+    Se reconsulta el foreground en el MOMENTO de escribir el veredicto, no al empezar el sondeo: la
+    sesión puede bloquearse en mitad del sondeo y un detalle en rojo sin esta línea culparía a un
+    producto que nunca recibió el gesto.
+    """
+    try:
+        foreground = u32.GetForegroundWindow()
+    except Exception:
+        foreground = 0
+    if foreground:
+        return detail
+    return ("%s | ENTRADA NO INYECTABLE: sin ventana en primer plano "
+            "(sesion bloqueada o escritorio no interactivo)" % detail)
 
 
 def select_item(el):
@@ -321,6 +300,13 @@ def probe(win):
         results.append(("S0_escena_del_fixture_lista", scene_ready,
                         signal_text if signal_text else "AUSENTE tras 60 s (el fixture no escribió)"))
 
+    # S0b. ¿Puede la ENTRADA inyectada llegar a una ventana de verdad? Va antes que cualquier paso que
+    # dependa de ella (teclas, clics) para que el informe diga la CAUSA arriba del todo: en una sesión
+    # bloqueada ni SetCursorPos ni mouse_event ni keybd_event tocan la app, y sin esto ocho veredictos
+    # rojos parecerían un defecto del producto. Falla el preflight, no el sondeo.
+    interactive, input_reason = interactive_desktop(win)
+    results.append(("S0_escritorio_interactivo", interactive, input_reason))
+
     # S1. Las anclas del lienzo y la barra por su AutomationId.
     found = {aid: by_aid(win, aid) for aid in ANCHORS}
     missing = [aid for aid in ANCHORS if found[aid] is None]
@@ -380,7 +366,8 @@ def probe(win):
                             "abierto=%s cerrado=%s" % (opened, closed))
     except Exception as ex:
         spotlight_detail = "atajo fallo: %s: %s" % (type(ex).__name__, ex)
-    results.append(("S4_atajo_del_lienzo", spotlight_ok, spotlight_detail))
+    results.append(("S4_atajo_del_lienzo", spotlight_ok,
+                    _input_note(spotlight_detail)))
 
     # S5. El buscador del cajon escribe por teclado UIA-inyectado, con restauracion.
     search_ok = False
@@ -406,7 +393,8 @@ def probe(win):
             search_detail = "el buscador del cajon no esta en el arbol"
     except Exception as ex:
         search_detail = "buscador fallo: %s: %s" % (type(ex).__name__, ex)
-    results.append(("S5_buscador_ui_inyectado", search_ok, search_detail))
+    results.append(("S5_buscador_ui_inyectado", search_ok,
+                    _input_note(search_detail)))
 
     # S6 (hito 245). Las CABECERAS de las 5 pestañas del inspector en el árbol (siempre
     # materializadas, sin conmutar ni pre-seleccionar): la estructura del Pivot observable.
@@ -457,26 +445,6 @@ def probe(win):
     except Exception as ex:
         diff_detail = "diff fallo: %s: %s" % (type(ex).__name__, ex)
     results.append(("S7_diff_con_ancla_de_fila", diff_ok, diff_detail))
-
-    # S8 (hito 319). LA RUEDA FÍSICA sobre las tres superficies del host. El arreglo resolvió el destino
-    # por el PUNTO del puntero (no por el elemento de origen, que hacía la rueda dependiente de la zona),
-    # y la única medida honesta es una muesca real de ratón. Cada superficie se empuja hacia arriba, se
-    # mide su VerticalScrollPercent, se nudge hacia abajo y se restaura.
-    omitted = []
-    for name, aid in WHEEL_SURFACES:
-        try:
-            verdict, detail = probe_wheel(win, name, aid)
-        except Exception as ex:
-            verdict, detail = "FALLO", "rueda (%s) lanzó: %s: %s" % (name, type(ex).__name__, ex)
-        if verdict == "OMITIDA":
-            omitted.append(name)
-            continue  # no es un fallo: no había desplazamiento que medir
-        results.append(("S8_rueda_%s" % name, verdict == "OK", detail))
-
-    if omitted:
-        results.append(("S8_rueda_omitidas", True,
-                        "sin desplazamiento que medir en esta escena (no hay fallo): %s"
-                        % ", ".join(omitted)))
 
     return results
 

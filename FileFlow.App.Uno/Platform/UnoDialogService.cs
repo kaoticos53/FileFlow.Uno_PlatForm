@@ -125,10 +125,6 @@ public sealed class UnoDialogService : IDialogService
 
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(dialog, "HostConfirmationDialog");
 
-        // El MISMO contrato de rueda que el resto de superficies del host: un ContentDialog también puede
-        // llevar contenido que desborde, y este camino no pasa por ShowOwnedModalAsync (que es su otro sobre).
-        ContentDialogWheelScroller.EnableScrollSurface(dialog);
-
         ActiveConfirmation = dialog;
         try
         {

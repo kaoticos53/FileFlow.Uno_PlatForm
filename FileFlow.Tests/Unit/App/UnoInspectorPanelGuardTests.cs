@@ -43,26 +43,6 @@ public class UnoInspectorPanelGuardTests
         "FileFlow.App.Uno/SelfCheckPanels.cs");
 
     [Fact]
-    public void InspectorPanel_ShouldRouteMouseWheelToItsScrollableSections()
-    {
-        string code = PanelCode();
-
-        // La rueda se captura UNA sola vez, en la raíz de la ficha. El destino (el viewer de la pestaña
-        // activa, con el suyo interno en Parámetros) lo resuelve el helper por el PUNTO del puntero: atarse al
-        // `OriginalSource` —o a un «destino preferido» que además se engancha aparte— hacía que la rueda
-        // funcionara sólo sobre unas zonas y que dos manejadores se pisaran (el doble movimiento).
-        code.Should().Contain("ContentDialogWheelScroller.EnableScrollSurface(this)",
-            "la ficha engancha la rueda una vez, en su raíz, para que cualquier zona (texto incluido) la reciba");
-
-        code.Should().NotContain("EnableScrollSurface(paramsScroll",
-            "la pestaña de parámetros NO lleva su propio manejador: su viewer se resuelve por el punto desde la raíz");
-        code.Should().NotContain("EnableScrollSurface(pane",
-            "los envoltorios de las pestañas tampoco: un segundo manejador por viewer desplazaba dos veces");
-        code.Should().NotContain("FindActiveScrollPane",
-            "sin destino preferido ni enganche por pestaña, ya no hace falta resolver la pestaña activa a mano");
-    }
-
-    [Fact]
     public void InspectorPanel_ShouldConsumeThePortableInspectorViewModel()
     {
         string code = PanelCode();

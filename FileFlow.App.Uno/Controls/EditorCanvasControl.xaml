@@ -30,7 +30,7 @@
     <!-- Grid de fondo dibujado por el code-behind (paso 25, el doble drenado del editor) -->
     <Canvas x:Name="GridLayer" IsHitTestVisible="False" />
 
-    <!-- El plano del grafo: pan (arrastre) + zoom (rueda/botones). La geometría vive en espacio de grafo. -->
+    <!-- El plano del grafo: pan (arrastre) + zoom (botones). La geometría vive en espacio de grafo. -->
     <Canvas x:Name="CanvasPlane" AutomationProperties.AutomationId="CanvasGraphPlane">
       <Canvas.RenderTransform>
         <CompositeTransform x:Name="CanvasTransform" ScaleX="1" ScaleY="1" TranslateX="0" TranslateY="0" />

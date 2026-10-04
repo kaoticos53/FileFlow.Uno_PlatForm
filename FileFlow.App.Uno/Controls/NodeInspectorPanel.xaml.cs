@@ -254,8 +254,8 @@ public sealed partial class NodeInspectorPanel : UserControl
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             Content = _paramsHost
         };
-        // Ancla UIA de la superficie de la pestaña de parámetros: el observador externo mide la rueda de la
-        // ficha sobre su scroll REAL (el anidado dentro del Grid), que es el que desplaza sus filas.
+        // Ancla UIA de la superficie de la pestaña de parámetros: nombra su scroll REAL (el anidado dentro
+        // del Grid), que es el que desplaza sus filas, para que el observador externo pueda apuntar a él.
         AutomationProperties.SetAutomationId(paramsScroll, "InspectorParamsScrollSurface");
         Grid.SetRow(paramsScroll, 4);
         paramsGrid.Children.Add(_descriptionText);
@@ -376,10 +376,9 @@ public sealed partial class NodeInspectorPanel : UserControl
             BorderThickness = new Thickness(1, 0, 0, 0),
             Child = _root
         };
-        // La rueda se engancha UNA vez a la ficha entera: el destino lo resuelve el helper por el punto del
-        // puntero (el ScrollViewer que lo contiene), así que da igual qué pestaña esté visible, que el cursor
-        // caiga sobre un TextBox, un desplegable o un texto, o que el evento venga ya marcado por un hijo.
-        ContentDialogWheelScroller.EnableScrollSurface(this);
+        // La rueda NO se engancha aquí: la desplazan los ScrollViewer nativos de cada pestaña, que es el
+        // comportamiento de fábrica de WinUI. El host no tiene NINGUNA rueda propia: el motor del hito 319
+        // se retiró por errático y el zoom del lienzo por rueda también (hito 324).
         Padding = new Thickness(16, 14, 16, 14);
 
         ApplyLocalization();
@@ -534,10 +533,10 @@ public sealed partial class NodeInspectorPanel : UserControl
     /// </summary>
     private ScrollViewer NamedPane(string name, UIElement content)
     {
-        // Sin enganche propio: la rueda de la ficha se captura en la raíz (el constructor) y el destino se
-        // resuelve por el punto del puntero, así que este envoltorio no necesita su propio manejador. Antes sí
-        // lo tenía, y su manejador y el de la raíz se pisaban: cada uno desplazaba su viewer y el resultado era
-        // un doble movimiento errático.
+        // Sin enganche propio: la desplaza el ScrollViewer nativo de WinUI. Antes tuvo manejador de rueda
+        // —primero propio, luego capturado en la raíz por punto del puntero— y los dos se pisaban: cada uno
+        // desplazaba su viewer y el resultado era un doble movimiento errático. El host ya no conserva ni ese
+        // motor ni el zoom por rueda del lienzo (hito 324).
         return new ScrollViewer
         {
             Name = name,

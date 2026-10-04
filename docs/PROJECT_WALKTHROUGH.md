@@ -22,6 +22,58 @@
 
 ## Ventana viva
 
+## [2026-10-04] - Hito 324: La rueda desaparece también del lienzo — zoom solo con botones
+
+### 🎯 El encargo
+«elimina también la parte del zoom con la rueda del ratón que tampoco funciona.»
+
+### 🔬 El diagnóstico
+Con el motor de scroll ya retirado (hito 323), el **único enganche de rueda que quedaba** en todo el host era `PointerWheelChanged="OnWheelChanged"` en el `RootGrid` del lienzo: el zoom. El usuario confirma que tampoco funciona, y ya no hay medida de rueda propia que lo respalde — `-SelfCheckUia` sigue no ejecutable con la sesión bloqueada y el selfcheck interno dejó de inyectar rueda. Frente a eso, el zoom **por botones** sí está medido: `ProbeUiAccessibility` comprueba `ZoomBy(1.25)` con su vuelta exacta, y la sonda externa S3 invoca `ZoomInButton`/`ZoomOutButton` y lee `ZoomLevelText`. Con la rueda fuera, el ancla del lienzo queda sin ningún evento propio: cero rueda en el host.
+
+### 🧱 Las piezas
+- **`EditorCanvasControl.xaml`**: retirado `PointerWheelChanged="OnWheelChanged"` del `RootGrid`; el comentario del plano del grafo pasa a «pan (arrastre) + zoom (botones)».
+- **`EditorCanvasControl.Navigation.cs`**: borrado el manejador `OnWheelChanged` con su documentación completa (`delta == 0`, `e.Handled`); en su lugar queda un comentario que declara la frontera: la rueda ya no hace nada en el lienzo y el zoom se mueve con los botones `+/-` y con `ZoomBy`, que es por donde lo miden la sonda y la suite. `OnZoomIn`/`OnZoomOut`/`ZoomBy` intactos.
+- **Comentarios puestos al día** (afirmaban «la única rueda con comportamiento propio es el zoom del lienzo»): `LogPanel.xaml.cs`, `NodeToolboxPanel.xaml.cs`, `NodeInspectorPanel.xaml.cs` (los tres sitios: ancla de parámetros, constructor y `NamedPane`), `SelfCheckCanvas.cs` y la sonda `ProbeWireTracking` de `EditorCanvasControl.xaml.cs`. Todos quedan diciendo lo que es verdad hoy: ninguna rueda propia en el host.
+- **Guardias adaptadas sin aflojar asertos**: `UnoInteractionParityGuardTests` renombra la fila de la tabla de paridad «Pan con botón derecho y zoom con la rueda» → **«Pan con botón derecho y zoom con botones»** (en `Table()` y en `gestureRows`, que sigue exigiendo su cobertura declarada); `UnoCanvasWireGuardTests` mantiene `code.Should().Contain("ZoomBy(1.25);")` pero su mensaje ya no cita «los mandos de la rueda».
+
+### 📊 Validación
+- `dotnet build FileFlow.slnx -v q`: **1 advertencia (PRI257, preexistente de WinAppSDK) · 0 errores**, exit 0.
+- Suite completa: **1771 superadas + 1 omitida = 1772, 0 fallos**, exit 0. En la primera pasada falló una vez `WorkflowCliRunner_WorkflowWithoutNodes_FailsInsteadOfEndingGreen` (Core CLI, ajena a este cambio): ejecutada aislada → **1/1 OK**; segunda pasada completa → **en verde**. No se reprodujo.
+- `run-uno-fast.ps1 -SelfCheck`: **EXIT 0 · 113 [OK] · 0 [FALLO] · `=== RESULTADO: VERIFICADO ===`**, sin ninguna línea de «rueda» en el informe (el binario se compiló después de tocar el XAML).
+- Barrido final: grep de `PointerWheelChanged|MouseWheelDelta|OnWheelChanged` sobre `.cs/.xaml` de todo el repo → **vacío**; en el código sólo queda prosa que explica la retirada.
+
+### 🚧 Frontera declarada
+El zoom queda **solo con botones** (`ZoomInButton`/`ZoomOutButton` de la barra del lienzo y `ZoomBy` con el que miden la sonda y la suite): la rueda ya no tiene NINGÚN comportamiento propio en el host, ni scroll ni zoom, y los paneles siguen con el scroll nativo de WinUI sin medida de rueda. Queda pendiente para el cierre del tramo: `docs/notas_de_version.md` (apartado 24, de una entrega antigua) todavía dice «que la rueda acerque, aleje y se detenga en su tope» — la nota vieja no se reescribe, las nuevas se añadan cuando se cierre el tramo.
+
+---
+
+## [2026-10-04] - Hito 323: La rueda, fuera del host — scroll nativo en los paneles, zoom solo en el lienzo
+
+### 🎯 El encargo
+«veo que el comportamiento del desplazamiento de la rueda del ratón no funciona correctamente, así que elimina todo el comportamiento relacionado con la rueda del ratón en todos los paneles. zoom en el lienzo de nodos y scroll en el resto de paneles. déjalo limpio y ordenado.» Vía `ask_questions` el usuario eligió la opción **«Quitar el motor propio»**: borrar el motor de rueda por completo y devolver el scroll de todos los paneles al `ScrollViewer` nativo de WinUI, dejando como única rueda con comportamiento propio el zoom del lienzo de nodos.
+
+### 🔬 El diagnóstico
+El motor heredado de los hitos 319–322 —resolución del destino por PUNTO del puntero, matriz de zonas, fallback Z inverso— seguía reportándose errático, y esta vez **tampoco se podía medir**: `-SelfCheckUia` quedó no ejecutable con la sesión de Windows bloqueada. El preflight de la sonda lo confirmó con datos: bajo el cursor hay una ventana `LockScreenBackstopFrame`, `GetForegroundWindow = NULL`, y la rueda física inyectada (`SetCursorPos` + `mouse_event(MOUSEEVENTF_WHEEL)`) cae en el backstop en vez de en la app. Un motor propio sin medida fiable —y con el `ScrollViewer` de WinUI ya desplazando de fábrica en cada panel— es superficie de fallo sin contrapartida: la decisión correcta es retirarlo entero, no repararlo otra vez.
+
+### 🧱 Las piezas
+- **Borrados** (los tres pilares del motor): `FileFlow.App.Uno/Platform/ContentDialogWheelScroller.cs` (210 líneas — la «puerta única» que registró el hito 322), `FileFlow.App.Uno/SelfCheckWheel.cs` (209 — la sonda interna) y `FileFlow.Tests/Unit/App/UnoWheelWiringGuardTests.cs` (195 — la guardia del contrato). También la decisión pura `FileFlow.App.Core/Services/WheelScrollDecision.cs` y sus tests, creados en las fases 0–3 de este mismo encargo y retirados antes de commit.
+- **Siete enganches `EnableScrollSurface(...)` retirados**: `LogPanel` (lista), `NodeToolboxPanel` (`ToolboxScroll`), `NodeInspectorPanel`, `SettingsPanel`, `MainMenuDrawer`, `UnoWindowService.ShowOwnedModalAsync` (el sobre de todo modal) y `UnoDialogService.ShowConfirmationDialogAsync` (la confirmación suelta). Cada sitio queda con un comentario que declara el nuevo contrato: **la rueda la mueve el `ScrollViewer` nativo; la única rueda propia es el zoom del lienzo**.
+- **Sondas desenganchadas**: quitados `WheelSurfaceForProbe` de consola, catálogo e inspector; `SelfCheckCanvas.cs` deja de invocar `SelfCheckWheel.Check(...)` y su bloque de omisiones. En `docs/qa/selfcheck_uia_probe.py` se eliminan los sondeos **S8** (rueda física) y **S9** (matriz de zonas) con su `_point_blocked` y sus párrafos del docstring; se **conservan** `interactive_desktop`, `_input_note` y `_backstop_visible`, el preflight de entrada que usan S4/S5.
+- **Guardias adaptadas, no debilitadas**: fuera `InspectorPanel_ShouldRouteMouseWheelToItsScrollableSections`, `ToolboxPanel_ShouldHandleMouseWheelAcrossTheWholeCatalogScrollSurface` y el aserto de `EnableScrollSurface` del de consola; se **conserva** el aserto de `LogNewRecordsPill` (la píldora de registros nuevos no es rueda). El barrido del host ya no existe porque el motor al que protegía tampoco.
+- **Zoom del lienzo intacto y acotado**: `PointerWheelChanged="OnWheelChanged"` sigue en el `RootGrid` de `EditorCanvasControl.xaml`; en `EditorCanvasControl.Navigation.cs` el manejador se documenta como «la ÚNICA rueda del host que no desplaza», sale con `delta == 0` y consume el evento con `e.Handled = true` para que nunca encadene con un ancestro desplazable.
+
+### 📊 Validación
+- `dotnet build FileFlow.slnx -v q`: **0 advertencias, 0 errores**.
+- Suite completa: **1771 superadas + 1 omitida = 1772, 0 fallos** (tras regenerar `mutations/COVERAGE.md` con `FILEFLOW_UPDATE_MUTATION_COVERAGE=1 dotnet test --filter MutationDeclarationCoverageTests`, 3/3 OK).
+- `run-uno-fast.ps1 -SelfCheck`: **EXIT 0 · 113 [OK] · 0 [FALLO] · `=== RESULTADO: VERIFICADO ===`**, sin ninguna línea de «rueda» en el informe.
+- Sonda externa: `python -m py_compile docs/qa/selfcheck_uia_probe.py` → OK; grep de «rueda»/`wheel` en la sonda → vacío.
+- Barrido de residuos: grep de `ContentDialogWheelScroller|SelfCheckWheel|WheelSurfaceForProbe|WheelScrollDecision|EnableScrollSurface` sobre `.cs/.xaml/.py` → **vacío**. El único `PointerWheelChanged`/`MouseWheelDelta` del host es el zoom del `RootGrid`.
+
+### 🚧 Frontera declarada
+El scroll de todos los paneles es el **nativo de WinUI sin medida propia**: no queda ninguna prueba que inyecte rueda y verifique `VerticalOffset`, así que la corrección del scroll se apoya en el comportamiento de fábrica y en las guardias de presencia (XAML/ código), no en una muesca medida. `-SelfCheckUia` queda **sin S8/S9** y sólo es ejecutable con sesión interactiva —aquí sale EXIT 2 porque `LockScreenBackstopFrame` tapa la app, hallazgo documentado en la propia sonda—. Lo único que queda declarado como rueda propia es el zoom del lienzo, vigiado por su comentario y su `e.Handled`.
+
+---
+
 ## [2026-10-03] - Hito 322: La rueda, un solo contrato en TODO el host (diálogos, ajustes, cajón y diseñador)
 
 ### 🎯 El encargo
