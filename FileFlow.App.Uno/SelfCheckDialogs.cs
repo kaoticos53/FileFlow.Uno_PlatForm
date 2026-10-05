@@ -8,6 +8,7 @@ using FileFlow.App.Uno.Controls;
 using FileFlow.App.Uno.Platform;
 using FileFlow.App.ViewModels;
 using FileFlow.Sdk;
+using FileFlow.Sdk.Renaming;
 using FileFlow.Sdk.Services;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -985,6 +986,144 @@ internal static class SelfCheckDialogs
                 Check(!Probe(() => UnoWindowService.DeclinedDialogs.Contains(DialogKeys.PasswordManager)),
                     "y su clave NO queda en la traza de lo que este host no sirve: la capacidad se cumple, no se declara");
 
+                // ── 3e. El ESTUDIO DE RENOMBRADO AVANZADO: el editor lateral SIGUE al paso seleccionado ──
+                // (hito 327) El usuario reporta que, en el pipeline del renombrador, seleccionar pasos distintos
+                // de la lista dejaba el panel lateral enseñando el PRIMERO: no se podía configurar paso a paso.
+                // Se mide por el camino del usuario —el botón «🏷️» de la fila del pipeline abre la superficie
+                // que DECLARA el nodo— y en los DOS eslabones del refresco: que la selección de la lista llegue
+                // al view model (SelectedStep) y que el editor lateral se repueble con ese paso (nombre común y
+                // panel del TIPO de método). Las lecturas van separadas del gesto, como el resto del sondeo.
+                NodeViewModel? renamerNode = null;
+                NodeParameterViewModel? pipelineParam = null;
+                bool renamerScene = Step(() =>
+                {
+                    renamerNode = canvas!.Editor!.AddNode("AdvancedRenamerNode", new Point(360, 260));
+                    if (renamerNode is null)
+                    {
+                        return false;
+                    }
+
+                    pipelineParam = renamerNode.Parameters.FirstOrDefault(p => p.IsRenamerPipeline);
+                    inspector!.InspectForProbe(renamerNode);
+                    return pipelineParam is not null;
+                });
+                Check(renamerScene,
+                    "el sondeo añade el nodo del renombrado avanzado y su fila del pipeline ('"
+                    + (pipelineParam?.Key ?? "—") + "')");
+
+                bool renamerAnchor = renamerScene && Step(() =>
+                    inspector!.ParameterControl("ParamRenamer_" + pipelineParam!.Key) is not null);
+                Check(renamerAnchor,
+                    "la fila del pipeline expone su botón «🏷️» con su ancla (ParamRenamer_"
+                    + (pipelineParam?.Key ?? "—") + ")");
+
+                bool renamerPressed = renamerAnchor && Step(() =>
+                    UnoWindowService.Press(inspector!.ParameterControl("ParamRenamer_" + pipelineParam!.Key)!));
+                bool renamerUp = renamerPressed
+                    && WaitUntil(() => UnoWindowService.ActiveAdvancedRenamer is not null, 9000);
+                Check(renamerUp,
+                    "su botón «🏷️» abre el ESTUDIO DE RENOMBRADO en la superficie de ESTE host (clave '"
+                    + (Probe(() => UnoWindowService.ActiveWindowKey) ?? "—") + "')");
+
+                // La escena de la medición: DOS pasos de nombres distintos (el nodo recién añadido puede traer
+                // uno solo; el segundo se da de alta por el mismo camino que el vuelo «Añadir Método»).
+                bool twoSteps = renamerUp && Step(() =>
+                {
+                    AdvancedRenamerBody renamer = UnoWindowService.ActiveAdvancedRenamer!;
+                    if (renamer.Vm.Steps.Count < 2)
+                    {
+                        renamer.Vm.AddStep(RenameMethodType.SearchReplace);
+                    }
+
+                    return renamer.Vm.Steps.Count >= 2;
+                });
+                string firstStepName = Probe(() => UnoWindowService.ActiveAdvancedRenamer?.Vm.Steps[0].Name ?? string.Empty) ?? string.Empty;
+                string secondStepName = Probe(() => UnoWindowService.ActiveAdvancedRenamer?.Vm.Steps[1].Name ?? string.Empty) ?? string.Empty;
+                bool distinctSteps = twoSteps
+                    && firstStepName.Length > 0
+                    && !string.Equals(firstStepName, secondStepName, StringComparison.Ordinal);
+                Check(distinctSteps,
+                    "el estudio queda con DOS pasos de nombres distintos: '" + Truncate(firstStepName)
+                    + "' y '" + Truncate(secondStepName) + "'");
+
+                // Selección BASE (el primer paso): la referencia de la que el editor tiene que partir.
+                bool baseChosen = distinctSteps && Step(() =>
+                {
+                    AdvancedRenamerBody renamer = UnoWindowService.ActiveAdvancedRenamer!;
+                    renamer.StepsList.SelectedItem = renamer.Vm.Steps[0];
+                    return true;
+                });
+                string baseShown = Probe(() => UnoWindowService.ActiveAdvancedRenamer?.ShownStepName ?? string.Empty) ?? string.Empty;
+                Check(baseChosen && string.Equals(baseShown, firstStepName, StringComparison.Ordinal),
+                    "el editor lateral muestra el paso seleccionado en la lista: '" + Truncate(baseShown) + "'");
+
+                // EL GESTO DEL USUARIO: seleccionar OTRO paso en la lista (el mismo cambio de selección que hace
+                // su clic sobre la fila).
+                bool otherStepChosen = baseChosen && Step(() =>
+                {
+                    AdvancedRenamerBody renamer = UnoWindowService.ActiveAdvancedRenamer!;
+                    renamer.StepsList.SelectedItem = renamer.Vm.Steps[1];
+                    return true;
+                });
+
+                // Eslabón 1: la selección de la lista llega al VIEW MODEL (la escritura de SelectedStep).
+                bool stepWritten = otherStepChosen && WaitUntil(() =>
+                {
+                    AdvancedRenamerBody? renamer = UnoWindowService.ActiveAdvancedRenamer;
+                    return renamer is not null && ReferenceEquals(renamer.Vm.SelectedStep, renamer.Vm.Steps[1]);
+                }, 4000);
+
+                // Eslabón 2: el editor lateral se repuebla con ESE paso —el nombre común y el panel del TIPO de
+                // método, que es la configuración que el usuario no veía aparecer—.
+                bool editorFollows = stepWritten && WaitUntil(() =>
+                {
+                    AdvancedRenamerBody? renamer = UnoWindowService.ActiveAdvancedRenamer;
+                    return renamer is not null
+                        && string.Equals(renamer.ShownStepName, secondStepName, StringComparison.Ordinal)
+                        && renamer.IsMethodPaneVisible(renamer.Vm.Steps[1].MethodType);
+                }, 4000);
+
+                string chosenName = Probe(() => UnoWindowService.ActiveAdvancedRenamer?.Vm.SelectedStep?.Name ?? "—") ?? "—";
+                string shownName = Probe(() => UnoWindowService.ActiveAdvancedRenamer?.ShownStepName ?? "—") ?? "—";
+                Measure("seleccionar el paso 2 en la lista → view model SelectedStep='" + Truncate(chosenName)
+                    + "' | editor lateral StepNameBox='" + Truncate(shownName) + "'");
+                string lifecycle = Probe(() => UnoWindowService.ActiveAdvancedRenamer?.Lifecycle ?? "—") ?? "—";
+                string lastEvent = Probe(() => UnoWindowService.ActiveAdvancedRenamer?.LastVmEvent ?? "—") ?? "—";
+                int refreshes = Probe(() => UnoWindowService.ActiveAdvancedRenamer?.EditorRefreshCount ?? -1);
+                Measure("ciclo del cuerpo='" + lifecycle + "' | último evento del view model='" + lastEvent
+                    + "' | refrescos del editor=" + refreshes);
+                Check(stepWritten && editorFollows,
+                    "seleccionar OTRO paso repuebla el editor lateral con SU configuración: enseña '"
+                    + Truncate(shownName) + "' para el paso '" + Truncate(secondStepName) + "' y su panel de método");
+
+                // La vuelta: el refresco tiene que seguir vivo, no ser de un solo disparo.
+                bool backChosen = editorFollows && Step(() =>
+                {
+                    AdvancedRenamerBody renamer = UnoWindowService.ActiveAdvancedRenamer!;
+                    renamer.StepsList.SelectedItem = renamer.Vm.Steps[0];
+                    return true;
+                });
+                bool backFollows = backChosen && WaitUntil(() =>
+                {
+                    AdvancedRenamerBody? renamer = UnoWindowService.ActiveAdvancedRenamer;
+                    return renamer is not null
+                        && ReferenceEquals(renamer.Vm.SelectedStep, renamer.Vm.Steps[0])
+                        && string.Equals(renamer.ShownStepName, firstStepName, StringComparison.Ordinal);
+                }, 4000);
+                Check(backFollows,
+                    "y volver al PRIMER paso devuelve el editor a él: el refresco sigue vivo en la ida y la vuelta");
+
+                // El estudio se cierra por SU botón (el canal del usuario) y sin «Guardar y Aplicar», así que el
+                // nodo añadido no escribe nada en el flujo: la escena se retira con el Undo del final.
+                bool renamerClosed = Step(() =>
+                {
+                    Button? close = UnoWindowService.ActiveCloseButton;
+                    return close is not null && UnoWindowService.Press(close);
+                }) && WaitUntil(() => UnoWindowService.ActiveDialog is null
+                    && UnoWindowService.ActiveAdvancedRenamer is null, 9000);
+                Check(renamerClosed,
+                    "el estudio se cierra por su botón sin dejar ninguna superficie abierta");
+
                 // ── 4. La FRONTERA: lo que este host no sirve queda declarado, no en silencio ──
                 IWindowService? windows = Probe(() =>
                     Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
@@ -1065,7 +1204,10 @@ internal static class SelfCheckDialogs
                 // ── 5. La escena vuelve a como estaba ──
                 bool graphRestored = Step(() =>
                 {
-                    for (int i = 0; i < 8 && canvas?.Editor?.Nodes.Count > nodesBefore; i++)
+                    // El tope subió de 8 a 16 con el hito 327: la sección 3e añade un nodo más (y los valores
+                    // que el sondeo escribe dejan entradas intercaladas), y con el tope viejo las últimas
+                    // adiciones no llegaban a deshacerse.
+                    for (int i = 0; i < 16 && canvas?.Editor?.Nodes.Count > nodesBefore; i++)
                     {
                         canvas.Editor.UndoRedoService.Undo();
                     }

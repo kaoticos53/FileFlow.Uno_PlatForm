@@ -62,4 +62,31 @@ public class UnoNodeDialogProbeGuardTests
         Read("run-uno.ps1").Should().Contain("\"--selfcheck-dialogs\"");
         Read("run-uno-fast.ps1").Should().Contain("\"--selfcheck-dialogs\"");
     }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // 2. El refresco del editor del renombrador (hito 327): la medición y su cura
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void TheProbe_ShouldMeasureTheRenamerStepRefresh_AndTheBodyMustNotDetachOnUnloaded()
+    {
+        // La MEDICIÓN tiene que seguir en el sondeo: el estudio se abre por su botón «🏷️», se selecciona
+        // OTRO paso en la lista por el CONTROL y se leen los dos eslabones —el paso llegando al view model
+        // y el editor lateral repuplándose— más la traza del ciclo de vida que reveló la causa.
+        string selfCheck = Code(SelfCheckCode);
+        selfCheck.Should().Contain("ActiveAdvancedRenamer");
+        selfCheck.Should().Contain("StepsList.SelectedItem");
+        selfCheck.Should().Contain("ciclo del cuerpo");
+        selfCheck.Should().Contain("EditorRefreshCount");
+
+        // La CURA: el cuerpo NO puede desuscribirse del view model en `Unloaded`. WinUI dispara ese evento
+        // CON EL MODAL EN PANTALLA (medido: «ctor+loaded+unloaded+unloaded», sin carga posterior), y esa
+        // desuscripción dejaba el editor enseñando el PRIMERO de los pasos para el resto de la sesión.
+        string body = Code("FileFlow.App.Uno/Controls/AdvancedRenamerBody.xaml.cs");
+        body.Should().NotContain("Unloaded += (_, _) => _vm.PropertyChanged -= OnVmPropertyChanged",
+            "la suscripción del editor no se ata a la descarga: con el modal en pantalla llegan Unloaded "
+            + "sin Loaded posterior y el panel quedaría mudo ante cualquier cambio de paso");
+        body.Should().Contain("Loaded += (_, _)",
+            "y la carga vuelve a reatar la suscripción y a repoblar el editor por si algo la hubiese desatado");
+    }
 }

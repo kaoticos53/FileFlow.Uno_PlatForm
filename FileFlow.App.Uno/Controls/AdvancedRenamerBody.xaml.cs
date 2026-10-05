@@ -20,6 +20,17 @@ public sealed partial class AdvancedRenamerBody : UserControl
     private readonly AdvancedRenamerEditorViewModel _vm;
     private bool _updatingEditor;
 
+    // ── Diagnóstico del ciclo de vida para el sondeo (hito 327): QUÉ evento se llevó la suscripción ──
+
+    /// <summary>La secuencia de ciclos de carga del cuerpo («ctor+loaded+unloaded…»).</summary>
+    internal string Lifecycle { get; private set; } = "ctor";
+
+    /// <summary>El último nombre de propiedad que el view model notificó a esta vista ("" = ninguno).</summary>
+    internal string LastVmEvent { get; private set; } = string.Empty;
+
+    /// <summary>Cuántas veces se ha repoblado el editor (UpdateStepEditor).</summary>
+    internal int EditorRefreshCount { get; private set; }
+
     public AdvancedRenamerBody(AdvancedRenamerEditorViewModel viewModel)
     {
         _vm = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
@@ -34,8 +45,26 @@ public sealed partial class AdvancedRenamerBody : UserControl
         NumberingResetCombo.ItemsSource = Enum.GetValues<NumberingResetOn>();
         NormNumbersTargetCombo.ItemsSource = Enum.GetValues<NumberPaddingTarget>();
 
+        // El cuerpo NO se desuscribe en `Unloaded`: WinUI dispara ese evento CON EL MODAL EN PANTALLA (el
+        // sondeo del hito 327 lo midió: «ctor+loaded+unloaded+unloaded», sin ninguna carga posterior), y
+        // desatar aquí la suscripción dejaba el editor mudo para el resto de la sesión —la selección de la
+        // lista seguía llegando al view model (medido) y el panel seguía enseñando el PRIMERO de los pasos—.
+        // La suscripción vive lo que viven los dos objetos: el cuerpo se crea con SU view model en cada
+        // apertura y ambos se reciclan juntos, así que no hay fuga que evitar (el ciclo lo recolecta el GC).
         _vm.PropertyChanged += OnVmPropertyChanged;
-        Unloaded += (_, _) => _vm.PropertyChanged -= OnVmPropertyChanged;
+
+        // Cada carga reata —por si algo la hubiese desatado— y repuebla el editor: la vista nunca puede
+        // quedarse enseñando un paso anterior al seleccionado.
+        Loaded += (_, _) =>
+        {
+            Lifecycle += "+loaded";
+            _vm.PropertyChanged -= OnVmPropertyChanged;
+            _vm.PropertyChanged += OnVmPropertyChanged;
+            UpdateStepEditor();
+        };
+
+        // La traza del ciclo de vida que lee el sondeo (hito 327): sin desuscribir.
+        Unloaded += (_, _) => Lifecycle += "+unloaded";
 
         RefreshLocalization();
         UpdateStepEditor();
@@ -43,8 +72,35 @@ public sealed partial class AdvancedRenamerBody : UserControl
 
     internal AdvancedRenamerEditorViewModel Vm => _vm;
 
+    // ── Superficie interna para el sondeo en runtime (--selfcheck-dialogs, hito 327) ──
+    // Los campos del XAML son privados: el sondeo mide el refresco del editor por aquí, que es donde se
+    // sabe qué paso está seleccionado y qué panel se está enseñando. Quien afirma es el sondeo
+    // (`SelfCheckDialogs`, sección 3e); esta superficie sólo expone la lectura.
+
+    /// <summary>La lista de pasos (la sonda selecciona por el CONTROL, el mismo cambio que hace el clic).</summary>
+    internal ListView StepsList => StepsListView;
+
+    /// <summary>El nombre que el editor lateral enseña AHORA para el paso seleccionado.</summary>
+    internal string ShownStepName => StepNameBox.Text;
+
+    /// <summary>¿Se ve AHORA el panel de configuración del tipo de método pedido?</summary>
+    internal bool IsMethodPaneVisible(RenameMethodType type) => type switch
+    {
+        RenameMethodType.NewName => PaneNewName.Visibility == Visibility.Visible,
+        RenameMethodType.SearchReplace => PaneSearchReplace.Visibility == Visibility.Visible,
+        RenameMethodType.Insert => PaneInsert.Visibility == Visibility.Visible,
+        RenameMethodType.Remove => PaneRemove.Visibility == Visibility.Visible,
+        RenameMethodType.CaseConversion => PaneCaseConversion.Visibility == Visibility.Visible,
+        RenameMethodType.Numbering => PaneNumbering.Visibility == Visibility.Visible,
+        RenameMethodType.ReplaceList => PaneReplaceList.Visibility == Visibility.Visible,
+        RenameMethodType.TrimClean => PaneTrimClean.Visibility == Visibility.Visible,
+        RenameMethodType.NormalizeNumbers => PaneNormalizeNumbers.Visibility == Visibility.Visible,
+        _ => false,
+    };
+
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        LastVmEvent = e.PropertyName ?? "(null)";
         if (e.PropertyName is nameof(AdvancedRenamerEditorViewModel.SelectedStep))
         {
             UpdateStepEditor();
@@ -79,6 +135,7 @@ public sealed partial class AdvancedRenamerBody : UserControl
 
     private void UpdateStepEditor()
     {
+        EditorRefreshCount++;
         var step = _vm.SelectedStep;
         if (step is null)
         {

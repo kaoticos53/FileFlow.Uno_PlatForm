@@ -22,6 +22,67 @@
 
 ## Ventana viva
 
+## [2026-10-05] - Hito 327: El editor del renombrador no seguía el paso seleccionado — `Unloaded` con el modal en pantalla
+
+### 🎯 El encargo
+> «he visto que en la configuracion del pipeline del renombrador avanzado al ir seleccionado los diferentes pasos del pipeline la configuracion de esto no aparece en el lateral. solo aparece el primero por lo que no puedo modificarla en cada uno de los pasos.»
+
+### 🔬 Diagnóstico
+El refresco del panel lateral vive en dos eslabones: (1) la lista escribe `SelectedStep` en el view model (enlace `SelectedItem` en dos sentidos) y (2) el `PropertyChanged` del view model invoca `UpdateStepEditor()` en el code-behind. Para saber cuál de los dos estaba roto —no adivinarlo— se midieron ambos en runtime: nueva sección **3e** del sondeo de diálogos (`SelfCheckDialogs`) que abre el Estudio por la **puerta del usuario** (el botón «🏷️» de la fila `ParamRenamer_PipelineName`, servido por la superficie que declara el nodo), garantiza dos pasos con nombres distintos, selecciona el segundo **por el CONTROL** (el mismo cambio de selección que hace el clic) y lee cada eslabón en un tick separado.
+
+- **Medición ANTES de la cura**: `view model SelectedStep='Buscar y Reemplazar' | editor lateral StepNameBox='Plantilla Inicial'` → **el eslabón 1 funciona** (la selección llega al view model) y **el eslabón 2 está muerto** (el panel no se repuebla).
+- **Trazas añadidas para cazar el culpable**: `Lifecycle` (secuencia `Loaded`/`Unloaded`), `LastVmEvent` (última propiedad notificada a la vista) y `EditorRefreshCount`. Resultado: `ciclo del cuerpo='ctor+loaded+unloaded+unloaded' | último evento del view model='' | refrescos del editor=2` → **WinUI dispara `Unloaded` CON EL MODAL EN PANTALLA (dos veces, sin ninguna carga posterior)**, y el constructor hacía `Unloaded += (_, _) => _vm.PropertyChanged -= OnVmPropertyChanged`: la primera descarga desataba la suscripción **para el resto de la sesión** y ningún cambio de paso volvía a llegar al editor. Por eso «sólo aparecía el primero»: el que se poblaba en la construcción.
+- **Por qué la suscripción no hace falta desatarla**: el cuerpo se crea con SU view model en cada apertura (`ShowAdvancedRenamerAsync` recibe el payload que fabrica el nodo) y ambos se reciclan juntos — ciclo que recolecta el GC; no había fuga que evitar, pero sí una pantalla que silenciaba.
+
+### 🧱 Acciones
+- **`FileFlow.App.Uno/Controls/AdvancedRenamerBody.xaml.cs`**: eliminada la desuscripción en `Unloaded` (con el comentario que cita la medición); el `Loaded` reata la suscripción —la resta previa la deja siempre en una sola— y repuebla el editor por si algo la hubiese desatado; el `Unloaded` sólo traza `Lifecycle`. Superficie interna de sondeo documentada: `StepsList`, `ShownStepName`, `IsMethodPaneVisible(tipo)` (los campos XAML son privados), más `Lifecycle`, `LastVmEvent` y `EditorRefreshCount`.
+- **`FileFlow.App.Uno/SelfCheckDialogs.cs`**: nueva sección **3e** (apertura por «🏷️» → dos pasos → seleccionar el segundo por el control → lectura de los dos eslabones + vuelta al primero + cierre por SU botón), con las tres medidas de diagnóstico en el informe. El tope de deshaceres de la sección 5 sube de 8 a 16: la 3e añade un nodo más y las entradas intercaladas de los valores que escribe el sondeo no cabían en el tope viejo (medido: con 8 no volvía a 3 nodos).
+- **`FileFlow.Tests/Unit/App/UnoNodeDialogProbeGuardTests.cs`**: guardia nueva — el sondeo tiene que seguir midiendo el refresco del renombrador (`ActiveAdvancedRenamer`, `StepsList.SelectedItem`, `ciclo del cuerpo`, `EditorRefreshCount`) y el cuerpo **no puede** volver a desuscribirse en `Unloaded` (`NotContain` de la línea exacta) con `Loaded += (_, _)` obligatorio.
+
+### 📊 Validación
+- Línea base del sondeo antes de tocar nada: **VERIFICADO** con EXIT 0 (la versión previa, sin la sección 3e).
+- Sondeo **ANTES de la cura**: **FALLO** en las dos comprobaciones del refresco con la medición que reveló los eslabones (arriba). **DESPUÉS de la cura**: `PROBE_EXIT=0`, **VERIFICADO, 67 [OK] · 0 [FALLO]**, con `SelectedStep='Buscar y Reemplazar' | StepNameBox='Buscar y Reemplazar'`, `último evento del view model='SelectedStep'`, `refrescos=5` y la traza `ctor+loaded+unloaded+unloaded` demostrando que los `Unloaded` espurios siguen llegando pero ya no desatan nada.
+- `dotnet build FileFlow.slnx`: **0 errores · 0 advertencias**.
+- Suite completa: **1774 superadas + 1 omitida = 1775, 0 fallos** (2ª pasada). En la 1ª pasada falló una vez `ExampleFlowsEndToEndTests.EveryExample_ShouldDeliverWhatItPromises` (`flow_22` no entregó `paquete.zip`): aislada **4/4** y no se reprodujo en la pasada completa — interferencia bajo carga, ajena a este hito (la sonda de guardia añade 1 prueba: 1774 → 1775).
+- Sin commit (no pedido).
+
+### 🚧 Frontera
+- La sonda selecciona **por el control** (`SelectedItem`), no con un clic físico: el camino del puntero hasta la fila no está medido (una vez seleccionada la fila, el cambio de selección es el mismo código que mide).
+- **`DataSetDesignerBody` repite el patrón** `Unloaded → PropertyChanged -=` (sus manejadores `ApplyTab`/`SyncTreeSelection` podrían morir igual con el modal en pantalla): **no medido, no tocado** — el usuario no lo ha reportado; candidato a un tramo siguiente.
+- El refresco del editor se mide por el nombre común (`ShownStepName`) y el panel del tipo de método (`IsMethodPaneVisible`); la escritura de cada campo concreto dentro del panel es responsabilidad de los handlers ya existentes (sus guardas `_updatingEditor` no se tocaron).
+
+## [2026-10-05] - Hito 326: El pie de la tarjeta — `FooterVisible` vive en el adaptador, no en el núcleo
+
+### 🎯 El encargo
+En runtime, en la salida de depuración:
+
+> `Error: BindingExpression path error: 'FooterVisible' property not found on 'FileFlow.App.ViewModels.NodeViewModel'. BindingExpression: Path='Node.FooterVisible' DataItem='FileFlow.App.Uno.Controls.NodeCardViewModel'; target element is 'Microsoft.UI.Xaml.Controls.Border' (Name='null'); target property is 'Visibility' (type 'Visibility')`
+
+### 🔬 El diagnóstico
+1. **La ruta miente sobre el propietario.** El `DataContext` de la tarjeta es `NodeCardViewModel` (expone `public NodeViewModel Node => _node`), y el XAML pedía `Node.FooterVisible` — es decir, la propiedad en **`NodeViewModel`**, donde **no existe**. `FooterVisible` es una propiedad calculada del **ADAPTADOR**: `NodeCardViewModel.FooterVisible => _node.HasTelemetry || _node.IsGpuAccelerated`. La ruta correcta sobre ese `DataContext` es la directa: `FooterVisible`.
+2. **Barrido de todos los `{Binding Node.X}`** del `NodeCardView.xaml` contra `NodeViewModel.cs`: los únicos nombres ausentes eran `FooterVisible`, `ToggleBreakpointCommand` y `ToggleLoggingCommand`; estos dos **sí** existen (generados por `[RelayCommand]`), luego el único binding roto era el del pie. El converter `BoolToVis` estaba declarado en el propio XAML: no era el problema.
+3. **La segunda mitad del defecto, la que no se veía**: aunque la ruta se arreglara a medias, el refresco agregado del adaptador (`OnNodePropertyChanged`) **no escuchaba `HasTelemetry` ni `IsGpuAccelerated`**, así que el pie se quedaría con la visibilidad de la escena en la que se abrió la tarjeta (oculto sin telemetría aunque el nodo acabe de procesar algo).
+4. **No hay red de seguridad**: el host no tiene ningún handler `BindingFailed`/`BindingExpression`, así que el error sólo asomaba en la consola de depuración.
+
+### 🧱 Las piezas
+- **`FileFlow.App.Uno/Controls/NodeCardView.xaml`**: `Visibility="{Binding FooterVisible, Converter={StaticResource BoolToVis}}"` — la ruta pasa de `Node.FooterVisible` a `FooterVisible`, con comentario que declara dónde vive la propiedad y por qué.
+- **`FileFlow.App.Uno/Controls/NodeCardViewModel.cs`**: `OnNodePropertyChanged` amplía la lista de refresco agregado con `or nameof(NodeViewModel.HasTelemetry) or nameof(NodeViewModel.IsGpuAccelerated)`, con su comentario de por qué (sin ellos el XAML no se entera y el pie se congela en su escena inicial).
+- **`mutations/conmutador-de-parametros-que-no-refresca.json`**: al crecer la lista de refresco, el fragmento declarado dejó de encajar y la guardia cantó `aparece 0 vez/veces y la mutación declara 1`. Actualizado el `old` al texto actual del producto y el `new` pasa a **cadena vacía** — la mutación sigue borrando **sólo** la cláusula `IsExpanded`, que es el defecto que declara; testigo y control intactos.
+
+### 📊 Validación
+- Guardia de declaraciones de mutaciones (`MutationDeclaration*`): **12/12**.
+- `mutate.ps1 -Name conmutador-de-parametros-que-no-refresca`: **MUERDE** (testigo rojo, control verde; árbol restaurado por bytes y recompilado), exit 0.
+- `dotnet build FileFlow.slnx`: **0 errores · 0 advertencias**, exit 0.
+- Suite completa: **1773 superadas + 1 omitida = 1774, 0 fallos**, exit 0. El recuento 1772 → 1774 queda **explicado**: son las 2 pruebas nuevas de `UnoDpiAwarenessGuardTests` que entraron en el hito 325 (commit `3c14973`); comparadas las listas de nombres de prueba con y sin este cambio → **diff vacío** (este cambio no añade ni quita pruebas).
+- `-SelfCheck` (el XAML cambió): **EXIT 0 · 113 [OK] · 0 [FALLO] · `=== RESULTADO: VERIFICADO ===`**.
+
+### 🚧 Frontera declarada
+- La corrección está verificada por **compilación, suite y selfcheck**, no por la salida de depuración de XAML: el host sigue sin handler `BindingFailed`, de modo que «cero errores de binding en runtime» **no está medido** — el error original sólo era visible en la consola de depuración.
+- `FooterVisible` no tiene ninguna prueba que caiga si la ruta del XAML vuelve a romperse: la guardia de mutaciones vigila la **lista de refresco**, no el binding de la vista.
+- Sin commit (no se ha pedido).
+
+---
+
 ## [2026-10-04] - Hito 325: La rueda a escala ≠ 100% — el host arrancaba DPI-UNAWARE (`app.manifest`)
 
 ### 🎯 El encargo

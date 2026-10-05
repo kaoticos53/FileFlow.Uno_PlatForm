@@ -7,8 +7,8 @@
       "file": "FileFlow.App.Uno/Controls/NodeCardViewModel.cs",
       "replacements": [
         {
-          "old": "\n            // El panel de acciones y su conmutador cuelgan de IsExpanded: sin esto, conmutar cambia el\n            // estado en el núcleo y la tarjeta sigue pintando el chevron de antes. La lista de parámetros ya\n            // no se pinta aquí —se editan en el inspector—, pero el estado desplegado sigue siendo del\n            // núcleo y el refresco tiene que seguirla.\n            or nameof(NodeViewModel.IsExpanded))",
-          "new": ")",
+          "old": "\n            // El panel de acciones y su conmutador cuelgan de IsExpanded: sin esto, conmutar cambia el\n            // estado en el núcleo y la tarjeta sigue pintando el chevron de antes. La lista de parámetros ya\n            // no se pinta aquí —se editan en el inspector—, pero el estado desplegado sigue siendo del\n            // núcleo y el refresco tiene que seguirla.\n            or nameof(NodeViewModel.IsExpanded)",
+          "new": "",
           "count": 1
         }
       ]

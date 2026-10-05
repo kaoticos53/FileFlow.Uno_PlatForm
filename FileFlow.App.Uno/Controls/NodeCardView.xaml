@@ -319,8 +319,11 @@
         </StackPanel>
 
         <!-- ================= Pie: telemetría (procesados, latencia, memoria, GPU) ================= -->
+        <!-- FooterVisible vive en el ADAPTADOR (NodeCardViewModel), no en el núcleo: el DataContext de esta
+             tarjeta es la tarjeta, y "Node.FooterVisible" buscaba la propiedad en NodeViewModel, donde no
+             existe (BindingExpression path error en runtime). -->
         <Border Padding="6,3.5" BorderThickness="0,1,0,0" BorderBrush="{StaticResource CanvasBorderBrush}"
-                Visibility="{Binding Node.FooterVisible, Converter={StaticResource BoolToVis}}">
+                Visibility="{Binding FooterVisible, Converter={StaticResource BoolToVis}}">
           <StackPanel Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
             <!-- Procesados -->
             <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">

@@ -176,7 +176,11 @@ public sealed class NodeCardViewModel : INotifyPropertyChanged
             // estado en el núcleo y la tarjeta sigue pintando el chevron de antes. La lista de parámetros ya
             // no se pinta aquí —se editan en el inspector—, pero el estado desplegado sigue siendo del
             // núcleo y el refresco tiene que seguirla.
-            or nameof(NodeViewModel.IsExpanded))
+            or nameof(NodeViewModel.IsExpanded)
+            // El pie de telemetría: FooterVisible se calcula AQUÍ (HasTelemetry || IsGpuAccelerated), así que
+            // sin estos dos el XAML no se entera y el pie se queda con la visibilidad de la escena en la que
+            // abrió la tarjeta (oculto sin telemetría aunque el nodo acabe de procesar algo).
+            or nameof(NodeViewModel.HasTelemetry) or nameof(NodeViewModel.IsGpuAccelerated))
         {
             // string.Empty refresca todos los bindings de la tarjeta: los estados viajan juntos.
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(string.Empty));
