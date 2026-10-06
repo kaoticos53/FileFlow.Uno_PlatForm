@@ -106,7 +106,14 @@ dotnet publish FileFlow.App.Uno/FileFlow.App.Uno.csproj \
   -o ./publish/FileFlowStudio-linux-x64
 ```
 
-### 5.3. Publicación para Web (WASM)
+### 5.3. Ejecución y Publicación para Web (WASM)
+Para compilar y lanzar automáticamente en el navegador predeterminado:
+```powershell
+.\run-web.ps1          # compila y abre en el navegador (http://localhost:5000)
+.\run-web-fast.ps1     # lanza sin compilar (-NoBuild)
+```
+
+Para publicar el paquete estático web optimizado:
 ```bash
 dotnet publish FileFlow.App.Uno/FileFlow.App.Uno.csproj \
   -c Release -p:FileFlowTarget=wasm -o ./publish/FileFlowStudio-web

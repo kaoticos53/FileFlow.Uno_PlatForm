@@ -13,6 +13,20 @@ Este documento se actualiza al finalizar cada sesión de trabajo para consolidar
 
 ## 0. Hito más reciente
 
+- **329. Lanzador automatizado para WebAssembly (`run-web.ps1`) y restauración de puntos de entrada multiplataforma (2026-10-06)**:
+  - **El encargo**: «crea un script diferent del run.ps1 para lanzar la version web automaticamente»
+  - **🔬 Diagnóstico**:
+    1. En una limpieza previa de código muerto (commit `3c14973`) se habían eliminado `Program.Wasm.cs` y `Program.cs`, lo que impedía compilar los targets `net10.0-browserwasm` y `net10.0-desktop` (`CS5001: El programa no contiene ningún método 'Main' estático adecuado`).
+    2. En WebAssembly, Uno Platform exige que `Main` sea asíncrono (`public static async Task Main(string[] args)`) e invoque `await host.RunAsync()` en vez de `host.Run()`.
+    3. Faltaba un lanzador análogo a `run.ps1` dedicado al ciclo de desarrollo y ejecución de la versión web.
+  - **🧱 Acciones**:
+    - `Program.Wasm.cs` implementado con `await host.RunAsync()` y `Program.cs` restaurado con `[STAThread]`.
+    - `Properties/launchSettings.json` creado con perfil `WebAssembly` apuntando a `http://localhost:5000` con `"launchBrowser": true`.
+    - `run-web.ps1` y `run-web-fast.ps1` creados: compilan para `FileFlowTarget=wasm`, inician el host y abren automáticamente el navegador predeterminado. Soportan `-NoBuild`, `-Configuration`, `-Port`, `-NoOpen` y `-Publish` (con servidor HTTP de PowerShell integrado).
+    - `.gitignore` actualizado con `publish/`.
+    - `AGENTS.md` y `docs/setup_and_deployment.md` actualizados con los nuevos comandos.
+  - **📊 Validación**: `build-matrix.ps1` superado con 0 errores (desktop + wasm); `dotnet publish -c Release -p:FileFlowTarget=wasm` 0 errores; suite de tests 13/13 pasadas.
+
 - **328. Redimensionamiento del panel de ajustes y eliminación de barra de scroll duplicada en modelos de IA (2026-10-06)**:
   - **El encargo**: «no puedo redimensionar el dilogo de ajustes que se queda algo pequeño en algunos como en los de modelos de ia teniendo la lista dos baras de desplazamiento lo que es confuso.»
   - **🔬 Diagnóstico**:

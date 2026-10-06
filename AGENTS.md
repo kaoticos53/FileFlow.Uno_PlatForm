@@ -118,6 +118,10 @@ Para validar cualquier cambio, el agente debe ejecutar las suites de prueba corr
 # Matriz de compilación multiplataforma (desktop + wasm)
 .\build-matrix.ps1
 
+# ─── Host Web (WebAssembly) ───
+.\run-web.ps1                          # compila y lanza la versión web en el navegador
+.\run-web-fast.ps1                     # lanza la versión web sin compilar (.\run-web.ps1 -NoBuild)
+
 # Sonda de autorrevisión del host Uno (mide el lienzo con puntero inyectado y espera el veredicto:
 # 0 = verificado; el informe queda en FileFlow.App.Uno\bin\<config>\net10.0-windows10.0.19041.0\selfcheck-report.txt)
 .\run.ps1 -SelfCheck

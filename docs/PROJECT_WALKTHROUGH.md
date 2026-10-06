@@ -22,6 +22,37 @@
 
 ## Ventana viva
 
+## [2026-10-06] - Hito 329: Lanzador automatizado para WebAssembly (`run-web.ps1`) y restauración de puntos de entrada multiplataforma
+
+### 🎯 El encargo
+> «crea un script diferent del run.ps1 para lanzar la version web automaticamente»
+
+### 🔬 Diagnóstico
+1. **Puntos de entrada multiplataforma ausentes**:
+   - `Program.Wasm.cs` y `Program.cs` habían sido removidos en una limpieza previa (commit `3c14973`), impidiendo la compilación para `net10.0-browserwasm` (WASM) y `net10.0-desktop` (Skia) con error `CS5001: El programa no contiene ningún método 'Main' estático adecuado`.
+   - Para WebAssembly, Uno Platform requiere que el punto de entrada ejecute `public static async Task Main(string[] args)` con `await host.RunAsync()` (invocar el método síncrono `Run()` arrojaba `InvalidOperationException`).
+2. **Ausencia de un script de lanzamiento automatizado para web**:
+   - Para Windows existían `run.ps1` y `run-fast.ps1`, pero no existía un lanzador homólogo que orquestara la compilación, el servidor y la apertura automática en el navegador.
+
+### 🧱 Acciones
+- **`FileFlow.App.Uno/Program.Wasm.cs`**:
+  - Creado el punto de entrada para `#if __WASM__` invocando de forma asíncrona `await host.RunAsync()` con `UnoPlatformHostBuilder.Create().App(() => new App()).UseWebAssembly().Build()`.
+- **`FileFlow.App.Uno/Program.cs`**:
+  - Restaurado el punto de entrada para `#if HAS_UNO_SKIA` (Linux/macOS) con `[STAThread]`.
+- **`FileFlow.App.Uno/Properties/launchSettings.json`**:
+  - Añadido el perfil `WebAssembly` con `"commandName": "Project"`, `"launchBrowser": true` y `"applicationUrl": "http://localhost:5000"`.
+- **`run-web.ps1` y `run-web-fast.ps1`**:
+  - Creados los scripts de automatización web: compilan para `FileFlowTarget=wasm`, inician la aplicación y abren el navegador en `http://localhost:5000`. Soportan `-NoBuild`, `-Configuration`, `-Port`, `-NoOpen` y `-Publish` (con fallback de servidor HTTP integrado en PowerShell).
+- **`.gitignore`**:
+  - Añadida la carpeta de salida `publish/`.
+- **`AGENTS.md` y `docs/setup_and_deployment.md`**:
+  - Documentado el uso de `run-web.ps1` y `run-web-fast.ps1`.
+
+### 📊 Validación
+- `build-matrix.ps1`: **0 errores** tanto para `desktop` (`net10.0-desktop`) como para `wasm` (`net10.0-browserwasm`).
+- `dotnet publish FileFlow.App.Uno -c Release -p:FileFlowTarget=wasm`: **0 errores**.
+- Suite de pruebas (`dotnet test --filter UnoSettingsSurfaceGuardTests`): **13 superadas · 0 fallos**.
+
 ## [2026-10-06] - Hito 328: Redimensionamiento del panel de ajustes y eliminación de barra de scroll duplicada en modelos de IA
 
 ### 🎯 El encargo
