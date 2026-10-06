@@ -13,6 +13,19 @@ Este documento se actualiza al finalizar cada sesión de trabajo para consolidar
 
 ## 0. Hito más reciente
 
+- **328. Redimensionamiento del panel de ajustes y eliminación de barra de scroll duplicada en modelos de IA (2026-10-06)**:
+  - **El encargo**: «no puedo redimensionar el dilogo de ajustes que se queda algo pequeño en algunos como en los de modelos de ia teniendo la lista dos baras de desplazamiento lo que es confuso.»
+  - **🔬 Diagnóstico**:
+    1. En `AiModelsPane`, el `ListView x:Name="AiModelsList"` tenía `MaxHeight="330"` y scroll interno por defecto de WinUI activo, anidado dentro del `ScrollViewer` de la pestaña, provocando dos barras de desplazamiento verticales adyacentes y confusas.
+    2. El diálogo `PanelHost` de ajustes tenía un tamaño fijo de 800x600 sin soporte de redimensionamiento dinámico, maximización ni arrastre.
+  - **🧱 Acciones**:
+    - `SettingsPanel.xaml`: tamaño inicial ampliado a 920x680 (`MinWidth="680" MinHeight="480"`). Retirado `MaxHeight="330"` de `AiModelsList` y deshabilitado su scroll interno con `ScrollViewer.VerticalScrollBarVisibility="Disabled"` y `ScrollViewer.VerticalScrollMode="Disabled"` para unificar todo el scroll vertical en el `ScrollViewer` exterior del panel.
+    - Añadida cabecera arrastrable `HeaderGrid` y botón de maximizar/restaurar (`MaximizeButton`) con iconografía vectorial pura (`Path` con `MaximizePath` y `RestorePath`) sin emojis, cumpliendo la guardia `UiIconographyTests`.
+    - Añadido asa visual e interactiva de redimensionamiento en la esquina inferior derecha (`ResizeGrip`).
+    - `SettingsPanel.xaml.cs`: lógica de redimensionamiento dinámico por arrastre, arrastre por cabecera, alternancia de maximizar/restaurar y recentrado automático adaptativo en `OnOverlaySizeChanged`. Cursor `SizeNorthwestSoutheast` seguro por reflexión (`ProtectedCursor`). Censo de secciones `MeasureSectionCensus` adaptado a dimensiones dinámicas.
+    - `Strings.resx` y `Strings.es.resx`: claves localizadas `Uno_Settings_Maximize`, `Uno_Settings_Restore` y `Uno_Settings_ResizeGrip`.
+  - **📊 Validación**: compilación de `FileFlow.App.Uno` limpia (0 errores); `UnoSettingsSurfaceGuardTests` 13/13; `UiIconographyTests` 3/3; `run-uno-fast.ps1 -SelfCheckSettings` EXIT 0 VERIFICADO; suite completa `dotnet test` 1774 superadas, 1 omitida, 0 fallos.
+
 - **327. El editor del renombrador no seguía el paso seleccionado: `Unloaded` con el modal en pantalla (2026-10-05)**:
   - **El encargo**: «he visto que en la configuracion del pipeline del renombrador avanzado al ir seleccionado los diferentes pasos del pipeline la configuracion de esto no aparece en el lateral. solo aparece el primero por lo que no puedo modificarla en cada uno de los pasos.»
   - **🔬 Diagnóstico (medido, no supuesto)**: nueva sección **3e** del sondeo de diálogos que abre el Estudio por la puerta del usuario (botón «🏷️» de la fila `ParamRenamer_PipelineName`), garantiza dos pasos con nombres distintos, selecciona el segundo **por el control** y lee cada eslabón en un tick separado. **Antes de la cura**: `SelectedStep='Buscar y Reemplazar' | StepNameBox='Plantilla Inicial'` → eslabón 1 (lista → view model) **OK**, eslabón 2 (`PropertyChanged` → `UpdateStepEditor`) **MUERTO**. Trazas nuevas (`Lifecycle`/`LastVmEvent`/`EditorRefreshCount`) dieron la causa: `ciclo='ctor+loaded+unloaded+unloaded' | último evento='' | refrescos=2` — **WinUI dispara `Unloaded` CON EL MODAL EN PANTALLA (dos veces, sin carga posterior)** y el constructor hacía `Unloaded += … _vm.PropertyChanged -= OnVmPropertyChanged`, que desataba la suscripción para toda la sesión. Por eso sólo se veía el primer paso (el poblado en la construcción). El VM y el cuerpo se reciclan juntos en cada apertura: no había fuga que evitar, sólo una pantalla silenciada.

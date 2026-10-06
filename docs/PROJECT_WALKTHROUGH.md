@@ -22,6 +22,44 @@
 
 ## Ventana viva
 
+## [2026-10-06] - Hito 328: Redimensionamiento del panel de ajustes y eliminación de barra de scroll duplicada en modelos de IA
+
+### 🎯 El encargo
+> «no puedo redimensionar el dilogo de ajustes que se queda algo pequeño en algunos como en los de modelos de ia teniendo la lista dos baras de desplazamiento lo que es confuso.»
+
+### 🔬 Diagnóstico
+1. **Doble barra de desplazamiento en la pestaña de modelos de IA**:
+   - `AiModelsPane` es un `ScrollViewer` que contiene un `ListView x:Name="AiModelsList"` con `MaxHeight="330"`.
+   - Como `ListView` en WinUI / Uno genera su propio `ScrollViewer` interno por defecto, la lista tenía un scroll anidado vertical adyacente a la barra de desplazamiento del panel exterior, generando dos barras paralelas y confusas al navegar por los modelos.
+2. **Tamaño fijo y falta de redimensionamiento del diálogo de ajustes**:
+   - `PanelHost` tenía un tamaño rígido de `Width="800" Height="600"` sin redimensionamiento dinámico ni botón de maximizar.
+   - En pantallas grandes o con listas largas de modelos y herramientas, el diálogo resultaba estrecho y no aprovechaba el espacio de la ventana ni permitía arrastre flotante.
+
+### 🧱 Acciones
+- **`FileFlow.App.Uno/Controls/SettingsPanel.xaml`**:
+  - `PanelHost` configurado con tamaño por defecto más amplio (`Width="920" Height="680" MinWidth="680" MinHeight="480"`).
+  - En `AiModelsList`, se retiró el `MaxHeight="330"` limitante y se deshabilitó el scroll interno mediante las propiedades adjuntas `ScrollViewer.VerticalScrollBarVisibility="Disabled"` y `ScrollViewer.VerticalScrollMode="Disabled"`, unificando todo el desplazamiento vertical en la barra única limpia de `AiModelsPane`.
+  - En la cabecera `HeaderGrid`, se añadieron eventos de arrastre (`PointerPressed`, `PointerMoved`, `PointerReleased`, `PointerCaptureLost`) y doble clic (`DoubleTapped="OnHeaderDoubleTapped"`) para maximizar/restaurar.
+  - Añadido `MaximizeButton` con iconos vectoriales puros (`Path` con `MaximizePath` y `RestorePath`) sin emojis, respetando estrictamente las guardias iconográficas (`UiIconographyTests`).
+  - Añadido un asa de redimensionamiento visual e interactiva en la esquina inferior derecha (`ResizeGrip`, `Grid.Row="2"`) con cursor de redimensionamiento diagonal configurado dinámicamente.
+- **`FileFlow.App.Uno/Controls/SettingsPanel.xaml.cs`**:
+  - Implementada la lógica de redimensionamiento por arrastre (`OnResizeGripPressed`, `OnResizeGripMoved`, `OnResizeGripReleased`), arrastre por cabecera (`OnHeaderPointerPressed`, `OnHeaderPointerMoved`, `OnHeaderPointerReleased`), maximización/restauración con memoria de tamaño (`ToggleMaximize`, `_restoreWidth`, `_restoreHeight`, `_restoreMargin`), y adaptación reactiva al redimensionar la ventana de la app (`OnOverlaySizeChanged`, `EnsureDialogFitsInOverlay`).
+  - Asignación de cursor seguro en `ResizeGrip` mediante reflexión (`ProtectedCursor` en `UIElement`) garantizando compatibilidad multiplataforma y cero errores `CS1540`.
+  - Actualizado `MeasureSectionCensus()` para contemplar el ancho y alto dinámicos del diálogo (`panelW`, `panelH`).
+- **`FileFlow.App.Uno/Resources/Strings.resx` y `Strings.es.resx`**:
+  - Claves de localización añadidas: `Uno_Settings_Maximize`, `Uno_Settings_Restore` y `Uno_Settings_ResizeGrip` en español e inglés.
+
+### 📊 Validación
+- `dotnet build FileFlow.App.Uno/FileFlow.App.Uno.csproj`: **0 errores · 0 advertencias nuevas**.
+- `dotnet test --filter UnoSettingsSurfaceGuardTests`: **13 superadas · 0 fallos**.
+- `dotnet test --filter UiIconographyTests`: **3 superadas · 0 fallos** (iconografía vectorial sin pictogramas dependientes de sistema).
+- Sonda en runtime `run-uno-fast.ps1 -SelfCheckSettings`: **EXIT 0 · VERIFICADO**.
+- Suite completa de pruebas (`dotnet test`): **1774 superadas · 1 omitida (clip semántico) · 0 fallos**.
+- Repositorio limpio de temporales (`build_out.txt` eliminado).
+
+### 🚧 Frontera
+- El diálogo de ajustes se mantiene centrado de inicio hasta que el usuario lo arrastra por la cabecera o lo redimensiona por el asa de la esquina.
+
 ## [2026-10-05] - Hito 327: El editor del renombrador no seguía el paso seleccionado — `Unloaded` con el modal en pantalla
 
 ### 🎯 El encargo

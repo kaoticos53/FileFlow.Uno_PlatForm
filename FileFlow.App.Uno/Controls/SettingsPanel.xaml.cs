@@ -8,8 +8,10 @@ using FileFlow.App.ViewModels;
 using FileFlow.Sdk.Localization;
 using FileFlow.Sdk.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 
 namespace FileFlow.App.Uno.Controls;
@@ -38,14 +40,50 @@ namespace FileFlow.App.Uno.Controls;
 /// </summary>
 public sealed partial class SettingsPanel : UserControl
 {
+    private const double DefaultPanelWidth = 920;
+    private const double DefaultPanelHeight = 680;
+    private const double MinPanelWidth = 680;
+    private const double MinPanelHeight = 480;
+
     private readonly IFileDialogService _fileDialog;
     private WorkflowSettingsViewModel? _vm;
+
+    private double _currentWidth = DefaultPanelWidth;
+    private double _currentHeight = DefaultPanelHeight;
+    private bool _isMaximized;
+    private double _restoreWidth = DefaultPanelWidth;
+    private double _restoreHeight = DefaultPanelHeight;
+    private Thickness _restoreMargin;
+    private HorizontalAlignment _restoreHAlign = HorizontalAlignment.Center;
+    private VerticalAlignment _restoreVAlign = VerticalAlignment.Center;
+
+    private bool _isResizing;
+    private Windows.Foundation.Point _resizeStartPoint;
+    private double _resizeStartWidth;
+    private double _resizeStartHeight;
+    private double _currentLeft;
+    private double _currentTop;
+
+    private bool _isMoving;
+    private Windows.Foundation.Point _headerStartPoint;
 
     public SettingsPanel()
     {
         InitializeComponent();
 
         _fileDialog = App.Services.GetRequiredService<IFileDialogService>();
+
+        try
+        {
+            typeof(UIElement).GetProperty("ProtectedCursor", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+                ?.SetValue(ResizeGrip, InputSystemCursor.Create(InputSystemCursorShape.SizeNorthwestSoutheast));
+        }
+        catch
+        {
+            // Fallback silencioso en plataformas donde InputSystemCursor no esté disponible
+        }
+
+        OverlayRoot.SizeChanged += OnOverlaySizeChanged;
 
         LocalizationManager.Instance.LanguageChanged += OnLanguageChanged;
         ApplyLocalization();
@@ -201,6 +239,7 @@ public sealed partial class SettingsPanel : UserControl
         SyncNumericFields();
         ShowSection("Storage");
         StatusText.Text = string.Empty;
+        EnsureDialogFitsInOverlay();
         OverlayRoot.Visibility = Visibility.Visible;
     }
 
@@ -544,6 +583,11 @@ public sealed partial class SettingsPanel : UserControl
 
         CancelButton.Content = loc.GetString("Uno_Settings_Cancel", "Cancelar");
         SaveButton.Content = loc.GetString("Uno_Settings_Save", "Guardar ajustes");
+
+        ToolTipService.SetToolTip(MaximizeButton, loc.GetString(
+            _isMaximized ? "Uno_Settings_Restore" : "Uno_Settings_Maximize",
+            _isMaximized ? "Restaurar tamaño del diálogo" : "Maximizar diálogo"));
+        ToolTipService.SetToolTip(ResizeGrip, loc.GetString("Uno_Settings_ResizeGrip", "Arrastrar para redimensionar"));
     }
 
     // ───────────────────────────────────────────────────────────────────────────────
@@ -580,12 +624,14 @@ public sealed partial class SettingsPanel : UserControl
         // borde —caja vacía, fuera del alcance del ratón y sin scroll ni rueda que la alcanzara— mientras
         // este censo, que sólo miraba la declaración, seguía diciendo «seis». Desde el hito 272 el censo
         // exige que cada botón tenga CAJA propia DENTRO del panel.
+        double panelW = double.IsNaN(PanelHost.Width) || PanelHost.Width <= 0 ? PanelHost.ActualWidth : PanelHost.Width;
+        double panelH = double.IsNaN(PanelHost.Height) || PanelHost.Height <= 0 ? PanelHost.ActualHeight : PanelHost.Height;
         var boxes = SectionButtons.Select(BoxInPanel).ToArray();
         bool six = SectionPanes.Length == 6 && SectionButtons.Length == 6
             && SectionButtons.All(b => b.Content is string text && !string.IsNullOrWhiteSpace(text))
             && boxes.All(box => box.Width > 0 && box.Height > 0
                 && box.Left >= -0.5 && box.Top >= -0.5
-                && box.Right <= PanelHost.Width + 0.5 && box.Bottom <= PanelHost.Height + 0.5);
+                && box.Right <= panelW + 0.5 && box.Bottom <= panelH + 0.5);
 
         return (six, "secciones=" + SectionPanes.Length + " / botones=" + SectionButtons.Length
             + " rótulos=" + string.Join(" | ", SectionButtons.Select(b => b.Content as string))
@@ -902,4 +948,268 @@ public sealed partial class SettingsPanel : UserControl
         Application.Current?.Resources["CanvasBackgroundBrush"] is SolidColorBrush brush
             ? brush.Color
             : default;
+
+    // ───────────────────────────────────────────────────────────────────────────────
+    // Redimensionamiento, maximización y desplazamiento del diálogo de ajustes
+    // ───────────────────────────────────────────────────────────────────────────────
+
+    private void OnMaximizeClicked(object sender, RoutedEventArgs e) => ToggleMaximize();
+
+    private void OnHeaderDoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => ToggleMaximize();
+
+    private void ToggleMaximize()
+    {
+        var loc = LocalizationManager.Instance;
+        if (!_isMaximized)
+        {
+            _restoreWidth = PanelHost.ActualWidth > 0 ? PanelHost.ActualWidth : _currentWidth;
+            _restoreHeight = PanelHost.ActualHeight > 0 ? PanelHost.ActualHeight : _currentHeight;
+            _restoreMargin = PanelHost.Margin;
+            _restoreHAlign = PanelHost.HorizontalAlignment;
+            _restoreVAlign = PanelHost.VerticalAlignment;
+
+            PanelHost.HorizontalAlignment = HorizontalAlignment.Stretch;
+            PanelHost.VerticalAlignment = VerticalAlignment.Stretch;
+            PanelHost.Margin = new Thickness(24);
+            PanelHost.Width = double.NaN;
+            PanelHost.Height = double.NaN;
+
+            _isMaximized = true;
+            MaximizePath.Visibility = Visibility.Collapsed;
+            RestorePath.Visibility = Visibility.Visible;
+            ToolTipService.SetToolTip(MaximizeButton, loc.GetString("Uno_Settings_Restore", "Restaurar tamaño del diálogo"));
+        }
+        else
+        {
+            PanelHost.HorizontalAlignment = _restoreHAlign;
+            PanelHost.VerticalAlignment = _restoreVAlign;
+            PanelHost.Margin = _restoreMargin;
+            PanelHost.Width = _restoreWidth;
+            PanelHost.Height = _restoreHeight;
+
+            _isMaximized = false;
+            MaximizePath.Visibility = Visibility.Visible;
+            RestorePath.Visibility = Visibility.Collapsed;
+            ToolTipService.SetToolTip(MaximizeButton, loc.GetString("Uno_Settings_Maximize", "Maximizar diálogo"));
+        }
+    }
+
+    private void OnOverlaySizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (OverlayRoot.Visibility != Visibility.Visible || _isMaximized)
+        {
+            return;
+        }
+
+        double availableW = e.NewSize.Width;
+        double availableH = e.NewSize.Height;
+        if (availableW <= 0 || availableH <= 0)
+        {
+            return;
+        }
+
+        double maxAllowedW = Math.Max(MinPanelWidth, availableW - 40);
+        double maxAllowedH = Math.Max(MinPanelHeight, availableH - 40);
+
+        if (PanelHost.Width > maxAllowedW)
+        {
+            PanelHost.Width = maxAllowedW;
+            _currentWidth = maxAllowedW;
+        }
+        if (PanelHost.Height > maxAllowedH)
+        {
+            PanelHost.Height = maxAllowedH;
+            _currentHeight = maxAllowedH;
+        }
+
+        if (PanelHost.HorizontalAlignment == HorizontalAlignment.Left)
+        {
+            double curLeft = PanelHost.Margin.Left;
+            double curTop = PanelHost.Margin.Top;
+            double maxLeft = Math.Max(0, availableW - PanelHost.Width - 10);
+            double maxTop = Math.Max(0, availableH - PanelHost.Height - 10);
+
+            if (curLeft > maxLeft || curTop > maxTop)
+            {
+                PanelHost.Margin = new Thickness(Math.Min(curLeft, maxLeft), Math.Min(curTop, maxTop), 0, 0);
+            }
+        }
+    }
+
+    private void EnsureDialogFitsInOverlay()
+    {
+        if (_isMaximized)
+        {
+            return;
+        }
+
+        double maxW = OverlayRoot.ActualWidth > 0 ? Math.Max(MinPanelWidth, OverlayRoot.ActualWidth - 40) : DefaultPanelWidth;
+        double maxH = OverlayRoot.ActualHeight > 0 ? Math.Max(MinPanelHeight, OverlayRoot.ActualHeight - 40) : DefaultPanelHeight;
+
+        _currentWidth = Math.Clamp(_currentWidth, MinPanelWidth, maxW);
+        _currentHeight = Math.Clamp(_currentHeight, MinPanelHeight, maxH);
+
+        PanelHost.Width = _currentWidth;
+        PanelHost.Height = _currentHeight;
+        PanelHost.HorizontalAlignment = HorizontalAlignment.Center;
+        PanelHost.VerticalAlignment = VerticalAlignment.Center;
+        PanelHost.Margin = new Thickness(0);
+    }
+
+    private void OnHeaderPointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (_isMaximized || !e.GetCurrentPoint(HeaderGrid).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        if (e.OriginalSource is DependencyObject source && FindParentButton(source) is not null)
+        {
+            return;
+        }
+
+        PrepareFloatingPosition();
+        _isMoving = true;
+        _headerStartPoint = e.GetCurrentPoint(OverlayRoot).Position;
+        HeaderGrid.CapturePointer(e.Pointer);
+        e.Handled = true;
+    }
+
+    private void OnHeaderPointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (!_isMoving)
+        {
+            return;
+        }
+
+        var curPoint = e.GetCurrentPoint(OverlayRoot).Position;
+        double deltaX = curPoint.X - _headerStartPoint.X;
+        double deltaY = curPoint.Y - _headerStartPoint.Y;
+
+        double curW = PanelHost.ActualWidth > 0 ? PanelHost.ActualWidth : PanelHost.Width;
+        double curH = PanelHost.ActualHeight > 0 ? PanelHost.ActualHeight : PanelHost.Height;
+
+        double maxLeft = Math.Max(0, OverlayRoot.ActualWidth - curW - 10);
+        double maxTop = Math.Max(0, OverlayRoot.ActualHeight - curH - 10);
+
+        double newLeft = Math.Clamp(_currentLeft + deltaX, 0, maxLeft);
+        double newTop = Math.Clamp(_currentTop + deltaY, 0, maxTop);
+
+        PanelHost.Margin = new Thickness(newLeft, newTop, 0, 0);
+        e.Handled = true;
+    }
+
+    private void OnHeaderPointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (_isMoving)
+        {
+            _isMoving = false;
+            _currentLeft = PanelHost.Margin.Left;
+            _currentTop = PanelHost.Margin.Top;
+            HeaderGrid.ReleasePointerCapture(e.Pointer);
+            e.Handled = true;
+        }
+    }
+
+    private void OnHeaderPointerCaptureLost(object sender, PointerRoutedEventArgs e)
+    {
+        _isMoving = false;
+    }
+
+    private void OnResizeGripPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (_isMaximized || !e.GetCurrentPoint(ResizeGrip).Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        PrepareFloatingPosition();
+        _isResizing = true;
+        _resizeStartPoint = e.GetCurrentPoint(OverlayRoot).Position;
+        _resizeStartWidth = PanelHost.ActualWidth > 0 ? PanelHost.ActualWidth : PanelHost.Width;
+        _resizeStartHeight = PanelHost.ActualHeight > 0 ? PanelHost.ActualHeight : PanelHost.Height;
+        ResizeGrip.CapturePointer(e.Pointer);
+        e.Handled = true;
+    }
+
+    private void OnResizeGripMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (!_isResizing)
+        {
+            return;
+        }
+
+        var curPoint = e.GetCurrentPoint(OverlayRoot).Position;
+        double deltaX = curPoint.X - _resizeStartPoint.X;
+        double deltaY = curPoint.Y - _resizeStartPoint.Y;
+
+        double maxAllowedW = Math.Max(MinPanelWidth, OverlayRoot.ActualWidth - _currentLeft - 16);
+        double maxAllowedH = Math.Max(MinPanelHeight, OverlayRoot.ActualHeight - _currentTop - 16);
+
+        double newW = Math.Clamp(_resizeStartWidth + deltaX, MinPanelWidth, maxAllowedW);
+        double newH = Math.Clamp(_resizeStartHeight + deltaY, MinPanelHeight, maxAllowedH);
+
+        PanelHost.Width = newW;
+        PanelHost.Height = newH;
+        _currentWidth = newW;
+        _currentHeight = newH;
+        e.Handled = true;
+    }
+
+    private void OnResizeGripReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (_isResizing)
+        {
+            _isResizing = false;
+            ResizeGrip.ReleasePointerCapture(e.Pointer);
+            e.Handled = true;
+        }
+    }
+
+    private void OnResizeGripCaptureLost(object sender, PointerRoutedEventArgs e)
+    {
+        _isResizing = false;
+    }
+
+    private void PrepareFloatingPosition()
+    {
+        if (PanelHost.HorizontalAlignment != HorizontalAlignment.Left)
+        {
+            try
+            {
+                var transform = PanelHost.TransformToVisual(OverlayRoot);
+                var topLeft = transform.TransformPoint(new Windows.Foundation.Point(0, 0));
+                _currentLeft = Math.Max(0, topLeft.X);
+                _currentTop = Math.Max(0, topLeft.Y);
+            }
+            catch
+            {
+                _currentLeft = Math.Max(0, (OverlayRoot.ActualWidth - PanelHost.Width) / 2);
+                _currentTop = Math.Max(0, (OverlayRoot.ActualHeight - PanelHost.Height) / 2);
+            }
+
+            double curW = PanelHost.ActualWidth > 0 ? PanelHost.ActualWidth : PanelHost.Width;
+            double curH = PanelHost.ActualHeight > 0 ? PanelHost.ActualHeight : PanelHost.Height;
+
+            PanelHost.HorizontalAlignment = HorizontalAlignment.Left;
+            PanelHost.VerticalAlignment = VerticalAlignment.Top;
+            PanelHost.Margin = new Thickness(_currentLeft, _currentTop, 0, 0);
+            PanelHost.Width = curW;
+            PanelHost.Height = curH;
+        }
+    }
+
+    private static Button? FindParentButton(DependencyObject element)
+    {
+        DependencyObject? cur = element;
+        while (cur is not null)
+        {
+            if (cur is Button b)
+            {
+                return b;
+            }
+            cur = VisualTreeHelper.GetParent(cur);
+        }
+        return null;
+    }
 }

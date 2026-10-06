@@ -83,6 +83,9 @@
   <data name="Uno_Settings_Save" xml:space="preserve"><value>Save settings</value></data>
   <data name="Uno_Settings_Cancel" xml:space="preserve"><value>Cancel</value></data>
   <data name="Uno_Settings_Close" xml:space="preserve"><value>Close settings</value></data>
+  <data name="Uno_Settings_Maximize" xml:space="preserve"><value>Maximize dialog</value></data>
+  <data name="Uno_Settings_Restore" xml:space="preserve"><value>Restore dialog size</value></data>
+  <data name="Uno_Settings_ResizeGrip" xml:space="preserve"><value>Drag to resize</value></data>
   <data name="Uno_Settings_GlobalOutputDirTitle" xml:space="preserve"><value>Default global output path</value></data>
   <data name="Uno_Settings_TempWorkingDirTitle" xml:space="preserve"><value>Temporary working directory</value></data>
   <data name="Uno_Settings_ConflictStrategyTitle" xml:space="preserve"><value>Default file conflict strategy</value></data>
